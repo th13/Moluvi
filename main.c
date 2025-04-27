@@ -148,6 +148,13 @@ void CanvasFillCircle(Canvas *const canvas, uint32_t center_x,
 }
 
 /**
+ * Fills a triangle in the canvas based on 3 points.
+ */
+void CanvasFillTriangle(Canvas *const canvas, uint32_t x0, uint32_t y0,
+                        uint32_t x1, uint32_t y1, uint32_t x2, uint32_t y2,
+                        uint32_t color) {}
+
+/**
  * Draws a line from point (x0, y0) to (x1, y1) of width 1.
  *
  * @todo Line thickness
@@ -190,12 +197,23 @@ void CanvasDrawLine(Canvas *const canvas, uint32_t x0, uint32_t y0, uint32_t x1,
 
 /* Text */
 
-#define GLYPH_WIDTH 8
-#define GLYPH_HEIGHT 9
-#define GLYPH_SIZE (GLYPH_WIDTH * GLYPH_HEIGHT)
+typedef struct Font {
+    uint32_t glyph_width;
+    uint32_t glyph_height;
+    const char *glyphs;
+} Font;
+
+const char *FontGetGlyph(Font font, char c) {
+    return &font.glyphs[c * sizeof(char) * font.glyph_width *
+                        font.glyph_height];
+}
+
+#define MJ_GLYPH_WIDTH 8
+#define MJ_GLYPH_HEIGHT 9
+#define MJ_GLYPH_SIZE (MJ_GLYPH_WIDTH * MJ_GLYPH_HEIGHT)
 
 // clang-format off
-const char Mojangles[128][GLYPH_SIZE] = {
+const char GlyphsMojangles[128][MJ_GLYPH_SIZE] = {
     [' '] = {
         0,0,0,0,0,0,0,0,
         0,0,0,0,0,0,0,0,
@@ -497,19 +515,26 @@ const char Mojangles[128][GLYPH_SIZE] = {
 };
 // clang-format on
 
+static Font Mojangles = {
+    .glyph_width = 8,
+    .glyph_height = 9,
+    .glyphs = &GlyphsMojangles[0][0],
+};
+
 /**
  * Draws a character at point (x, y).
  * @todo Font and Glyph types.
  */
-void CanvasDrawChar(Canvas *const canvas, char c, uint32_t x, uint32_t y) {
-    const char *glyph = Mojangles[c];
-    uint32_t end_x = x + GLYPH_WIDTH - 1;
-    uint32_t end_y = y + GLYPH_HEIGHT - 1;
+void CanvasDrawChar(Canvas *const canvas, char c, uint32_t x, uint32_t y,
+                    Font font) {
+    const char *glyph = FontGetGlyph(font, c);
+    uint32_t end_x = x + font.glyph_width - 1;
+    uint32_t end_y = y + font.glyph_height - 1;
     assert(end_x < canvas->width && end_y < canvas->height);
 
     for (uint32_t ix = x; ix <= end_x; ix++) {
         for (uint32_t iy = y; iy <= end_y; iy++) {
-            uint32_t i_glyph = (iy - y) * GLYPH_WIDTH + (ix - x);
+            uint32_t i_glyph = (iy - y) * font.glyph_width + (ix - x);
             if (glyph[i_glyph] == 1) {
                 CanvasBlendPixel(canvas, ix, iy, COLOR_BLACK);
             }
@@ -521,17 +546,17 @@ void CanvasDrawChar(Canvas *const canvas, char c, uint32_t x, uint32_t y) {
  * Writes text to the canvas starting at point (x, y).
  */
 void CanvasWriteString(Canvas *const canvas, const char *str, uint32_t x,
-                       uint32_t y) {
+                       uint32_t y, Font font) {
     uint32_t len = strlen(str);
     if (len == 0)
         return;
-    assert(x + len * GLYPH_WIDTH < canvas->width &&
-           y + GLYPH_HEIGHT < canvas->height);
+    assert(x + len * font.glyph_width < canvas->width &&
+           y + font.glyph_height < canvas->height);
 
     for (int i = 0; i < len; i++) {
         char c = str[i];
-        uint32_t ix = x + i * GLYPH_WIDTH;
-        CanvasDrawChar(canvas, c, ix, y);
+        uint32_t ix = x + i * font.glyph_width;
+        CanvasDrawChar(canvas, c, ix, y, font);
     }
 }
 
@@ -576,7 +601,8 @@ int main() {
     CanvasDestroy(&canvas);
 
     canvas = MakeCanvas(WIDTH, HEIGHT, COLOR_WHITE);
-    CanvasWriteString(&canvas, "FUCK YOU SPENSER", WIDTH / 2, HEIGHT / 2);
+    CanvasWriteString(&canvas, "FUCK YOU SPENSER", WIDTH / 2, HEIGHT / 2,
+                      Mojangles);
     RenderCanvasP6("text.ppm", &canvas);
     CanvasDestroy(&canvas);
     return 0;
