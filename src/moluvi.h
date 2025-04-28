@@ -58,6 +58,16 @@ RGBA RGBAFromHex(uint32_t hex) {
     return color;
 }
 
+RGBA RGBAToGrayscale(RGBA color) {
+    uint32_t gray = (299 * color.r + 587 * color.g + 114 * color.b) / 1000;
+    gray = MIN(255, gray);
+    return (RGBA){.r = (uint8_t)gray, .g = (uint8_t)gray, .b = (uint8_t)gray};
+}
+
+uint32_t ColorToGrayscale(uint32_t color) {
+    return RGBAToHex(RGBAToGrayscale(RGBAFromHex(color)));
+}
+
 uint32_t ColorBlend(uint32_t fg, uint32_t bg) {
     RGBA fgc = RGBAFromHex(fg);
     RGBA bgc = RGBAFromHex(bg);
@@ -90,7 +100,11 @@ Canvas MakeCanvas(uint32_t width, uint32_t height, uint32_t fill) {
     return (Canvas){.width = width, .height = height, .data = data};
 }
 
-void CanvasDestroy(Canvas *canvas) { free(canvas->data); }
+void CanvasFreeData(Canvas *canvas) {
+    if (!canvas)
+        return;
+    free(canvas->data);
+}
 
 uint32_t CanvasGetPixel(const Canvas *const canvas, uint32_t x, uint32_t y) {
     assert(x >= 0 && x < canvas->width && y >= 0 && y < canvas->height);
@@ -842,4 +856,83 @@ void CanvasRenderPPM(const Canvas *const canvas, const char *filename) {
         fwrite(&rgba.g, sizeof(uint8_t), 1, file);
         fwrite(&rgba.b, sizeof(uint8_t), 1, file);
     }
+    fclose(file);
+}
+
+/**
+ * Loads a canvas from PPM P6 file.
+ */
+Canvas CanvasLoadPPM(const char *filename) {
+    FILE *file = fopen(filename, "rb");
+    if (!file) {
+        perror("Could not load canvas");
+        exit(1);
+    }
+
+    char *token = NULL;
+
+    // Parse format
+    char line[32];
+    if (!fgets(line, sizeof(line), file)) {
+        perror("Could not read format from file");
+        exit(1);
+    }
+    printf("LOADING CANVAS FROM FILE %s, FORMAT=%s", filename, line);
+
+    token = strtok(line, "\n");
+    if (strcmp(token, "P6") != 0) {
+        perror("CanvasLoadPPM currently only supports P6 format\n");
+        exit(1);
+    }
+
+    // Parse size and (ignored for now) color depth
+    uint32_t width;
+    uint32_t height;
+    uint16_t bit_depth;
+
+    if (!fgets(line, sizeof(line), file)) {
+        perror("Could not read size/color depth from file");
+        exit(1);
+    }
+
+    token = strtok(line, " ");
+    width = atoi(token);
+    token = strtok(NULL, " ");
+    height = atoi(token);
+    token = strtok(NULL, " ");
+    bit_depth = atoi(token);
+    printf("CANVAS WIDTH=%u, HEIGHT=%u, BIT_DEPTH=%u\n", width, height,
+           bit_depth);
+
+    // Interpret bytes as colors (uint32_t)
+    uint32_t *data = (uint32_t *)malloc(sizeof(uint32_t) * width * height);
+    if (!data) {
+        perror("Could not allocate data\n");
+        exit(1);
+    }
+    char *raw_data = (char *)malloc(3 * width * height);
+    if (!raw_data) {
+        perror("Could not allocate raw data\n");
+        exit(1);
+    }
+
+    size_t bytes_read = fread(raw_data, 1, 3 * width * height, file);
+    if (bytes_read != 3 * width * height) {
+        perror("Could not read enough bytes\n");
+        printf("Bytes read %lu\n", bytes_read);
+        exit(1);
+    }
+
+    for (uint32_t i = 0; i < width * height; i++) {
+        RGBA rgba = {0};
+        rgba.r = raw_data[i * 3];
+        rgba.g = raw_data[i * 3 + 1];
+        rgba.b = raw_data[i * 3 + 2];
+        rgba.a = 0xFF;
+        data[i] = RGBAToHex(rgba);
+    }
+
+    fclose(file);
+
+    return (Canvas){.width = width, .height = height, .data = data};
 }
