@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -10,6 +11,8 @@
 #define MIN(a, b) (a) < (b) ? (a) : (b)
 #define MAX(a, b) (a) > (b) ? (a) : (b)
 #define SUB_SATURATED(a, b) ((a) > (b) ? (a - b) : 0)
+#define IN_IRANGEF(x, min, max, eps)                                           \
+    ((x) >= (min) - (eps) && (x) <= (max) + (eps))
 
 /* Memory/misc utilities */
 #define SWAP(T, a, b)                                                          \
@@ -34,7 +37,7 @@ typedef struct RGBA {
 } RGBA;
 
 uint8_t blendComponent(uint8_t bg, uint8_t fg, uint8_t a) {
-    return (uint8_t)((uint16_t)(bg - bg * a / 255) + (uint16_t)(fg * a / 255));
+    return (uint8_t)(((uint16_t)bg * (255 - a) + (uint16_t)fg * a) / 255);
 }
 
 /**
@@ -83,7 +86,7 @@ typedef struct Canvas {
  */
 Canvas MakeCanvas(uint32_t width, uint32_t height, uint32_t fill) {
     uint32_t *data = (uint32_t *)malloc(width * height * sizeof(uint32_t));
-    for (int i = 0; i < width * height; i++) {
+    for (uint32_t i = 0; i < width * height; i++) {
         data[i] = fill;
     }
     return (Canvas){.width = width, .height = height, .data = data};
@@ -101,7 +104,6 @@ uint32_t CanvasGetPixel(const Canvas *const canvas, uint32_t x, uint32_t y) {
  */
 void CanvasSetPixel(Canvas *const canvas, uint32_t x, uint32_t y,
                     uint32_t color) {
-    uint32_t bg = CanvasGetPixel(canvas, x, y);
     canvas->data[y * canvas->width + x] = color;
 }
 
@@ -150,9 +152,39 @@ void CanvasFillCircle(Canvas *const canvas, uint32_t center_x,
 /**
  * Fills a triangle in the canvas based on 3 points.
  */
-void CanvasFillTriangle(Canvas *const canvas, uint32_t x0, uint32_t y0,
-                        uint32_t x1, uint32_t y1, uint32_t x2, uint32_t y2,
-                        uint32_t color) {}
+void CanvasFillTriangle(Canvas *const canvas, int64_t x0, int64_t y0,
+                        int64_t x1, int64_t y1, int64_t x2, int64_t y2,
+                        uint32_t color) {
+    // Bounding region
+    int64_t start_x = MIN(MIN(x0, x1), x2);
+    int64_t start_y = MIN(MIN(y0, y1), y2);
+    int64_t end_x = MAX(MAX(x0, x1), x2);
+    int64_t end_y = MAX(MAX(y0, y1), y2);
+    assert(start_x >= 0 && start_y >= 0 && end_x < canvas->width &&
+           end_y < canvas->height);
+
+    int64_t dy01 = y0 - y1;
+    int64_t dy12 = y1 - y2;
+    int64_t dy20 = y2 - y0;
+    int64_t area = x0 * dy12 + x1 * dy20 + x2 * dy01;
+    assert(area != 0); // no degenerate triangles
+
+    for (int64_t ix = start_x; ix <= end_x; ix++) {
+        for (int64_t iy = start_y; iy <= end_y; iy++) {
+
+            int64_t area_p12 = ix * dy12 + x1 * (y2 - iy) + x2 * (iy - y1);
+            int64_t area_p02 = ix * dy20 + x2 * (y0 - iy) + x0 * (iy - y2);
+            int64_t area_p01 = ix * dy01 + x0 * (y1 - iy) + x1 * (iy - y0);
+            float u = (float)area_p12 / area;
+            float v = (float)area_p02 / area;
+            float w = (float)area_p01 / area;
+            if (IN_IRANGEF(u, 0, 1, 1e-3) && IN_IRANGEF(v, 0, 1, 1e-3) &&
+                IN_IRANGEF(w, 0, 1, 1e-3)) {
+                CanvasBlendPixel(canvas, ix, iy, color);
+            }
+        }
+    }
+}
 
 /**
  * Draws a line from point (x0, y0) to (x1, y1) of width 1.
@@ -208,14 +240,15 @@ const char *FontGetGlyph(Font font, char c) {
                         font.glyph_height];
 }
 
+/* Font: Mojangles */
+
 #define MJ_GLYPH_WIDTH 8
-#define MJ_GLYPH_HEIGHT 9
+#define MJ_GLYPH_HEIGHT 8
 #define MJ_GLYPH_SIZE (MJ_GLYPH_WIDTH * MJ_GLYPH_HEIGHT)
 
 // clang-format off
 const char GlyphsMojangles[128][MJ_GLYPH_SIZE] = {
     [' '] = {
-        0,0,0,0,0,0,0,0,
         0,0,0,0,0,0,0,0,
         0,0,0,0,0,0,0,0,
         0,0,0,0,0,0,0,0,
@@ -234,7 +267,6 @@ const char GlyphsMojangles[128][MJ_GLYPH_SIZE] = {
         0,1,0,0,0,1,0,0,
         0,1,0,0,0,1,0,0,
         0,0,0,0,0,0,0,0,
-        0,0,0,0,0,0,0,0,
     },
     ['B'] = {
         0,1,1,1,1,0,0,0,
@@ -244,7 +276,6 @@ const char GlyphsMojangles[128][MJ_GLYPH_SIZE] = {
         0,1,0,0,0,1,0,0,
         0,1,0,0,0,1,0,0,
         0,1,1,1,1,0,0,0,
-        0,0,0,0,0,0,0,0,
         0,0,0,0,0,0,0,0,
     },
     ['C'] = {
@@ -256,7 +287,6 @@ const char GlyphsMojangles[128][MJ_GLYPH_SIZE] = {
         0,1,0,0,0,1,0,0,
         0,0,1,1,1,0,0,0,
         0,0,0,0,0,0,0,0,
-        0,0,0,0,0,0,0,0,
     },
     ['D'] = {
         0,1,1,1,1,0,0,0,
@@ -266,7 +296,6 @@ const char GlyphsMojangles[128][MJ_GLYPH_SIZE] = {
         0,1,0,0,0,1,0,0,
         0,1,0,0,0,1,0,0,
         0,1,1,1,1,0,0,0,
-        0,0,0,0,0,0,0,0,
         0,0,0,0,0,0,0,0,
     },
     ['E'] = {
@@ -278,7 +307,6 @@ const char GlyphsMojangles[128][MJ_GLYPH_SIZE] = {
         0,1,0,0,0,0,0,0,
         0,1,1,1,1,1,0,0,
         0,0,0,0,0,0,0,0,
-        0,0,0,0,0,0,0,0,
     },
     ['F'] = {
         0,1,1,1,1,1,0,0,
@@ -288,7 +316,6 @@ const char GlyphsMojangles[128][MJ_GLYPH_SIZE] = {
         0,1,0,0,0,0,0,0,
         0,1,0,0,0,0,0,0,
         0,1,0,0,0,0,0,0,
-        0,0,0,0,0,0,0,0,
         0,0,0,0,0,0,0,0,
     },
     ['G'] = {
@@ -300,7 +327,6 @@ const char GlyphsMojangles[128][MJ_GLYPH_SIZE] = {
         0,1,0,0,0,1,0,0,
         0,0,1,1,1,0,0,0,
         0,0,0,0,0,0,0,0,
-        0,0,0,0,0,0,0,0,
     },
     ['H'] = {
         0,1,0,0,0,1,0,0,
@@ -310,7 +336,6 @@ const char GlyphsMojangles[128][MJ_GLYPH_SIZE] = {
         0,1,0,0,0,1,0,0,
         0,1,0,0,0,1,0,0,
         0,1,0,0,0,1,0,0,
-        0,0,0,0,0,0,0,0,
         0,0,0,0,0,0,0,0,
     },
     ['I'] = {
@@ -322,7 +347,6 @@ const char GlyphsMojangles[128][MJ_GLYPH_SIZE] = {
         0,0,1,0,0,0,0,0,
         0,1,1,1,0,0,0,0,
         0,0,0,0,0,0,0,0,
-        0,0,0,0,0,0,0,0,
     },
     ['J'] = {
         0,0,0,0,0,1,0,0,
@@ -332,7 +356,6 @@ const char GlyphsMojangles[128][MJ_GLYPH_SIZE] = {
         0,0,0,0,0,1,0,0,
         0,1,0,0,0,1,0,0,
         0,0,1,1,1,0,0,0,
-        0,0,0,0,0,0,0,0,
         0,0,0,0,0,0,0,0,
     },
     ['K'] = {
@@ -344,7 +367,6 @@ const char GlyphsMojangles[128][MJ_GLYPH_SIZE] = {
         0,1,0,0,0,1,0,0,
         0,1,0,0,0,1,0,0,
         0,0,0,0,0,0,0,0,
-        0,0,0,0,0,0,0,0,
     },
     ['L'] = {
         0,1,0,0,0,0,0,0,
@@ -354,7 +376,6 @@ const char GlyphsMojangles[128][MJ_GLYPH_SIZE] = {
         0,1,0,0,0,0,0,0,
         0,1,0,0,0,0,0,0,
         0,1,1,1,1,1,0,0,
-        0,0,0,0,0,0,0,0,
         0,0,0,0,0,0,0,0,
     },
     ['M'] = {
@@ -366,7 +387,6 @@ const char GlyphsMojangles[128][MJ_GLYPH_SIZE] = {
         0,1,0,0,0,1,0,0,
         0,1,0,0,0,1,0,0,
         0,0,0,0,0,0,0,0,
-        0,0,0,0,0,0,0,0,
     },
     ['N'] = {
         0,1,0,0,0,1,0,0,
@@ -376,7 +396,6 @@ const char GlyphsMojangles[128][MJ_GLYPH_SIZE] = {
         0,1,0,0,0,1,0,0,
         0,1,0,0,0,1,0,0,
         0,1,0,0,0,1,0,0,
-        0,0,0,0,0,0,0,0,
         0,0,0,0,0,0,0,0,
     },
     ['O'] = {
@@ -388,7 +407,6 @@ const char GlyphsMojangles[128][MJ_GLYPH_SIZE] = {
         0,1,0,0,0,1,0,0,
         0,0,1,1,1,0,0,0,
         0,0,0,0,0,0,0,0,
-        0,0,0,0,0,0,0,0,
     },
     ['P'] = {
         0,1,1,1,1,0,0,0,
@@ -398,7 +416,6 @@ const char GlyphsMojangles[128][MJ_GLYPH_SIZE] = {
         0,1,0,0,0,0,0,0,
         0,1,0,0,0,0,0,0,
         0,1,0,0,0,0,0,0,
-        0,0,0,0,0,0,0,0,
         0,0,0,0,0,0,0,0,
     },
     ['Q'] = {
@@ -410,7 +427,6 @@ const char GlyphsMojangles[128][MJ_GLYPH_SIZE] = {
         0,1,0,0,1,0,0,0,
         0,0,1,1,0,1,0,0,
         0,0,0,0,0,0,0,0,
-        0,0,0,0,0,0,0,0,
     },
     ['R'] = {
         0,1,1,1,1,0,0,0,
@@ -420,7 +436,6 @@ const char GlyphsMojangles[128][MJ_GLYPH_SIZE] = {
         0,1,0,0,0,1,0,0,
         0,1,0,0,0,1,0,0,
         0,1,0,0,0,1,0,0,
-        0,0,0,0,0,0,0,0,
         0,0,0,0,0,0,0,0,
     },
     ['S'] = {
@@ -432,7 +447,6 @@ const char GlyphsMojangles[128][MJ_GLYPH_SIZE] = {
         0,1,0,0,0,1,0,0,
         0,0,1,1,1,0,0,0,
         0,0,0,0,0,0,0,0,
-        0,0,0,0,0,0,0,0,
     },
     ['T'] = {
         0,1,1,1,1,1,0,0,
@@ -442,7 +456,6 @@ const char GlyphsMojangles[128][MJ_GLYPH_SIZE] = {
         0,0,0,1,0,0,0,0,
         0,0,0,1,0,0,0,0,
         0,0,0,1,0,0,0,0,
-        0,0,0,0,0,0,0,0,
         0,0,0,0,0,0,0,0,
     },
     ['U'] = {
@@ -454,7 +467,6 @@ const char GlyphsMojangles[128][MJ_GLYPH_SIZE] = {
         0,1,0,0,0,1,0,0,
         0,0,1,1,1,0,0,0,
         0,0,0,0,0,0,0,0,
-        0,0,0,0,0,0,0,0,
     },
     ['V'] = {
         0,1,0,0,0,1,0,0,
@@ -464,7 +476,6 @@ const char GlyphsMojangles[128][MJ_GLYPH_SIZE] = {
         0,0,1,0,1,0,0,0,
         0,0,1,0,1,0,0,0,
         0,0,0,1,0,0,0,0,
-        0,0,0,0,0,0,0,0,
         0,0,0,0,0,0,0,0,
     },
     ['W'] = {
@@ -476,7 +487,6 @@ const char GlyphsMojangles[128][MJ_GLYPH_SIZE] = {
         0,1,1,0,1,1,0,0,
         0,1,0,0,0,1,0,0,
         0,0,0,0,0,0,0,0,
-        0,0,0,0,0,0,0,0,
     },
     ['X'] = {
         0,1,0,0,0,1,0,0,
@@ -486,7 +496,6 @@ const char GlyphsMojangles[128][MJ_GLYPH_SIZE] = {
         0,1,0,0,0,1,0,0,
         0,1,0,0,0,1,0,0,
         0,1,0,0,0,1,0,0,
-        0,0,0,0,0,0,0,0,
         0,0,0,0,0,0,0,0,
     },
     ['Y'] = {
@@ -498,7 +507,6 @@ const char GlyphsMojangles[128][MJ_GLYPH_SIZE] = {
         0,0,0,1,0,0,0,0,
         0,0,0,1,0,0,0,0,
         0,0,0,0,0,0,0,0,
-        0,0,0,0,0,0,0,0,
     },
     ['Z'] = {
         0,1,1,1,1,1,0,0,
@@ -509,6 +517,265 @@ const char GlyphsMojangles[128][MJ_GLYPH_SIZE] = {
         0,1,0,0,0,0,0,0,
         0,1,1,1,1,1,0,0,
         0,0,0,0,0,0,0,0,
+    },
+    ['a'] = {
+        0,0,0,0,0,0,0,0,
+        0,0,0,0,0,0,0,0,
+        0,0,1,1,1,0,0,0,
+        0,0,0,0,0,1,0,0,
+        0,0,1,1,1,1,0,0,
+        0,1,0,0,0,1,0,0,
+        0,0,1,1,1,1,0,0,
+        0,0,0,0,0,0,0,0,
+    },
+    ['b'] = {
+        0,1,0,0,0,0,0,0,
+        0,1,0,0,0,0,0,0,
+        0,1,0,1,1,0,0,0,
+        0,1,1,0,0,1,0,0,
+        0,1,0,0,0,1,0,0,
+        0,1,0,0,0,1,0,0,
+        0,1,1,1,1,0,0,0,
+        0,0,0,0,0,0,0,0,
+    },
+    ['c'] = {
+        0,0,0,0,0,0,0,0,
+        0,0,0,0,0,0,0,0,
+        0,0,1,1,1,0,0,0,
+        0,1,0,0,0,1,0,0,
+        0,1,0,0,0,0,0,0,
+        0,1,0,0,0,1,0,0,
+        0,0,1,1,1,0,0,0,
+        0,0,0,0,0,0,0,0,
+    },
+    ['d'] = {
+        0,0,0,0,0,1,0,0,
+        0,0,0,0,0,1,0,0,
+        0,0,1,1,0,1,0,0,
+        0,1,0,0,1,1,0,0,
+        0,1,0,0,0,1,0,0,
+        0,1,0,0,0,1,0,0,
+        0,0,1,1,1,1,0,0,
+        0,0,0,0,0,0,0,0,
+    },
+    ['e'] = {
+        0,0,0,0,0,0,0,0,
+        0,0,0,0,0,0,0,0,
+        0,0,1,1,1,0,0,0,
+        0,1,0,0,0,1,0,0,
+        0,1,1,1,1,1,0,0,
+        0,1,0,0,0,0,0,0,
+        0,0,1,1,1,1,0,0,
+        0,0,0,0,0,0,0,0,
+    },
+    ['f'] = {
+        0,0,0,1,1,0,0,0,
+        0,0,1,0,0,0,0,0,
+        0,1,1,1,1,0,0,0,
+        0,0,1,0,0,0,0,0,
+        0,0,1,0,0,0,0,0,
+        0,0,1,0,0,0,0,0,
+        0,0,1,0,0,0,0,0,
+        0,0,0,0,0,0,0,0,
+    },
+    ['g'] = {
+        0,0,0,0,0,0,0,0,
+        0,0,0,0,0,0,0,0,
+        0,0,1,1,1,1,0,0,
+        0,1,0,0,0,1,0,0,
+        0,1,0,0,0,1,0,0,
+        0,0,1,1,1,1,0,0,
+        0,0,0,0,0,1,0,0,
+        0,1,1,1,1,0,0,0,
+    },
+    ['h'] = {
+        0,1,0,0,0,0,0,0,
+        0,1,0,0,0,0,0,0,
+        0,1,0,1,1,0,0,0,
+        0,1,1,0,0,1,0,0,
+        0,1,0,0,0,1,0,0,
+        0,1,0,0,0,1,0,0,
+        0,1,0,0,0,1,0,0,
+        0,0,0,0,0,0,0,0,
+    },
+    ['i'] = {
+        0,0,1,0,0,0,0,0,
+        0,0,0,0,0,0,0,0,
+        0,0,1,0,0,0,0,0,
+        0,0,1,0,0,0,0,0,
+        0,0,1,0,0,0,0,0,
+        0,0,1,0,0,0,0,0,
+        0,0,1,0,0,0,0,0,
+        0,0,0,0,0,0,0,0,
+    },
+    ['j'] = {
+        0,0,0,0,0,1,0,0,
+        0,0,0,0,0,0,0,0,
+        0,0,0,0,0,1,0,0,
+        0,0,0,0,0,1,0,0,
+        0,0,0,0,0,1,0,0,
+        0,1,0,0,0,1,0,0,
+        0,0,1,1,1,0,0,0,
+        0,0,0,0,0,0,0,0,
+    },
+    ['k'] = {
+        0,1,0,0,0,0,0,0,
+        0,1,0,0,0,0,0,0,
+        0,1,0,0,1,0,0,0,
+        0,1,0,1,0,0,0,0,
+        0,1,1,0,0,0,0,0,
+        0,1,0,1,0,0,0,0,
+        0,1,0,0,1,0,0,0,
+        0,0,0,0,0,0,0,0,
+    },
+    ['l'] = {
+        0,0,1,0,0,0,0,0,
+        0,0,1,0,0,0,0,0,
+        0,0,1,0,0,0,0,0,
+        0,0,1,0,0,0,0,0,
+        0,0,1,0,0,0,0,0,
+        0,0,1,0,0,0,0,0,
+        0,0,0,1,0,0,0,0,
+        0,0,0,0,0,0,0,0,
+    },
+    ['m'] = {
+        0,0,0,0,0,0,0,0,
+        0,0,0,0,0,0,0,0,
+        0,1,1,0,1,0,0,0,
+        0,1,0,1,0,1,0,0,
+        0,1,0,1,0,1,0,0,
+        0,1,0,0,0,1,0,0,
+        0,1,0,0,0,1,0,0,
+        0,0,0,0,0,0,0,0,
+    },
+    ['n'] = {
+        0,0,0,0,0,0,0,0,
+        0,0,0,0,0,0,0,0,
+        0,1,1,1,1,0,0,0,
+        0,1,0,0,0,1,0,0,
+        0,1,0,0,0,1,0,0,
+        0,1,0,0,0,1,0,0,
+        0,1,0,0,0,1,0,0,
+        0,0,0,0,0,0,0,0,
+    },
+    ['o'] = {
+        0,0,0,0,0,0,0,0,
+        0,0,0,0,0,0,0,0,
+        0,0,1,1,1,0,0,0,
+        0,1,0,0,0,1,0,0,
+        0,1,0,0,0,1,0,0,
+        0,1,0,0,0,1,0,0,
+        0,0,1,1,1,0,0,0,
+        0,0,0,0,0,0,0,0,
+    },
+    ['p'] = {
+        0,0,0,0,0,0,0,0,
+        0,0,0,0,0,0,0,0,
+        0,1,0,1,1,0,0,0,
+        0,1,1,0,0,1,0,0,
+        0,1,0,0,0,1,0,0,
+        0,1,1,1,1,0,0,0,
+        0,1,0,0,0,0,0,0,
+        0,1,0,0,0,0,0,0,
+    },
+    ['q'] = {
+        0,0,0,0,0,0,0,0,
+        0,0,0,0,0,0,0,0,
+        0,0,1,1,0,1,0,0,
+        0,1,0,0,1,1,0,0,
+        0,1,0,0,0,1,0,0,
+        0,0,1,1,1,1,0,0,
+        0,0,0,0,0,1,0,0,
+        0,0,0,0,0,1,0,0,
+    },
+    ['r'] = {
+        0,0,0,0,0,0,0,0,
+        0,0,0,0,0,0,0,0,
+        0,1,0,1,1,0,0,0,
+        0,1,1,0,0,1,0,0,
+        0,1,0,0,0,0,0,0,
+        0,1,0,0,0,0,0,0,
+        0,1,0,0,0,0,0,0,
+        0,0,0,0,0,0,0,0,
+    },
+    ['s'] = {
+        0,0,0,0,0,0,0,0,
+        0,0,0,0,0,0,0,0,
+        0,0,1,1,1,1,0,0,
+        0,1,0,0,0,0,0,0,
+        0,0,1,1,1,0,0,0,
+        0,0,0,0,0,1,0,0,
+        0,1,1,1,1,0,0,0,
+        0,0,0,0,0,0,0,0,
+    },
+    ['t'] = {
+        0,0,1,0,0,0,0,0,
+        0,1,1,1,0,0,0,0,
+        0,0,1,0,0,0,0,0,
+        0,0,1,0,0,0,0,0,
+        0,0,1,0,0,0,0,0,
+        0,0,1,0,0,0,0,0,
+        0,0,0,1,0,0,0,0,
+        0,0,0,0,0,0,0,0,
+    },
+    ['u'] = {
+        0,0,0,0,0,0,0,0,
+        0,0,0,0,0,0,0,0,
+        0,1,0,0,0,1,0,0,
+        0,1,0,0,0,1,0,0,
+        0,1,0,0,0,1,0,0,
+        0,1,0,0,0,1,0,0,
+        0,0,1,1,1,1,0,0,
+        0,0,0,0,0,0,0,0,
+    },
+    ['v'] = {
+        0,0,0,0,0,0,0,0,
+        0,0,0,0,0,0,0,0,
+        0,1,0,0,0,1,0,0,
+        0,1,0,0,0,1,0,0,
+        0,1,0,0,0,1,0,0,
+        0,0,1,0,1,0,0,0,
+        0,0,0,1,0,0,0,0,
+        0,0,0,0,0,0,0,0,
+    },
+    ['w'] = {
+        0,0,0,0,0,0,0,0,
+        0,0,0,0,0,0,0,0,
+        0,1,0,0,0,1,0,0,
+        0,1,0,0,0,1,0,0,
+        0,1,0,1,0,1,0,0,
+        0,1,0,1,0,1,0,0,
+        0,0,1,1,1,1,0,0,
+        0,0,0,0,0,0,0,0,
+    },
+    ['x'] = {
+        0,0,0,0,0,0,0,0,
+        0,0,0,0,0,0,0,0,
+        0,1,0,0,0,1,0,0,
+        0,0,1,0,1,0,0,0,
+        0,0,0,1,0,0,0,0,
+        0,0,1,0,1,0,0,0,
+        0,1,0,0,0,1,0,0,
+        0,0,0,0,0,0,0,0,
+    },
+    ['y'] = {
+        0,0,0,0,0,0,0,0,
+        0,0,0,0,0,0,0,0,
+        0,1,0,0,0,1,0,0,
+        0,1,0,0,0,1,0,0,
+        0,1,0,0,0,1,0,0,
+        0,0,1,1,1,1,0,0,
+        0,0,0,0,0,1,0,0,
+        0,1,1,1,1,0,0,0,
+    },
+    ['z'] = {
+        0,0,0,0,0,0,0,0,
+        0,0,0,0,0,0,0,0,
+        0,1,1,1,1,1,0,0,
+        0,0,0,0,1,0,0,0,
+        0,0,0,1,0,0,0,0,
+        0,0,1,0,0,0,0,0,
+        0,1,1,1,1,1,0,0,
         0,0,0,0,0,0,0,0,
     },
 
@@ -516,8 +783,8 @@ const char GlyphsMojangles[128][MJ_GLYPH_SIZE] = {
 // clang-format on
 
 static Font Mojangles = {
-    .glyph_width = 8,
-    .glyph_height = 9,
+    .glyph_width = MJ_GLYPH_WIDTH,
+    .glyph_height = MJ_GLYPH_HEIGHT,
     .glyphs = &GlyphsMojangles[0][0],
 };
 
@@ -553,7 +820,7 @@ void CanvasWriteString(Canvas *const canvas, const char *str, uint32_t x,
     assert(x + len * font.glyph_width < canvas->width &&
            y + font.glyph_height < canvas->height);
 
-    for (int i = 0; i < len; i++) {
+    for (uint32_t i = 0; i < len; i++) {
         char c = str[i];
         uint32_t ix = x + i * font.glyph_width;
         CanvasDrawChar(canvas, c, ix, y, font);
@@ -563,7 +830,7 @@ void CanvasWriteString(Canvas *const canvas, const char *str, uint32_t x,
 /**
  * Renders a canvas to a file in PPM P6 format.
  */
-void RenderCanvasP6(const char *filename, const Canvas *const canvas) {
+void CanvasRenderPPM(const Canvas *const canvas, const char *filename) {
     FILE *file = fopen(filename, "wb");
     if (!file) {
         perror("Could not open file");
@@ -571,9 +838,11 @@ void RenderCanvasP6(const char *filename, const Canvas *const canvas) {
     }
 
     fprintf(file, "P6\n%u %u 255\n", canvas->width, canvas->height);
-    for (int i = 0; i < canvas->width * canvas->height; i++) {
-        uint8_t *rgb = (uint8_t *)&canvas->data[i];
-        fwrite(rgb + 1, sizeof(uint8_t), 3, file); // assumes little endian
+    for (uint32_t i = 0; i < canvas->width * canvas->height; i++) {
+        RGBA rgba = RGBAFromHex(canvas->data[i]);
+        fwrite(&rgba.r, sizeof(uint8_t), 1, file);
+        fwrite(&rgba.g, sizeof(uint8_t), 1, file);
+        fwrite(&rgba.b, sizeof(uint8_t), 1, file);
     }
 }
 
@@ -585,7 +854,7 @@ int main() {
     Canvas canvas = MakeCanvas(WIDTH, HEIGHT, 0xFF8732FF);
     CanvasFillRect(&canvas, 4, 4, WIDTH - 8, HEIGHT - 8, 0x03A4D9FF);
     CanvasFillCircle(&canvas, 0, 0, HEIGHT / 5, 0xFA5DC3BB);
-    RenderCanvasP6("test.ppm", &canvas);
+    CanvasRenderPPM(&canvas, "test.ppm");
     CanvasDestroy(&canvas);
 
     canvas = MakeCanvas(WIDTH, HEIGHT, 0x03A4D9FF);
@@ -597,13 +866,26 @@ int main() {
     CanvasDrawLine(&canvas, WIDTH - 1, 0, 0, HEIGHT / 2, COLOR_BLACK);
     CanvasDrawLine(&canvas, 0, HEIGHT - 1, WIDTH - 1, HEIGHT / 2, COLOR_BLACK);
     CanvasDrawLine(&canvas, WIDTH - 1, HEIGHT - 1, 0, HEIGHT / 2, COLOR_BLACK);
-    RenderCanvasP6("lines.ppm", &canvas);
+    CanvasRenderPPM(&canvas, "lines.ppm");
     CanvasDestroy(&canvas);
 
     canvas = MakeCanvas(WIDTH, HEIGHT, COLOR_WHITE);
-    CanvasWriteString(&canvas, "FUCK YOU SPENSER", WIDTH / 2, HEIGHT / 2,
+    CanvasWriteString(&canvas,
+                      "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                      "abcdefghijklmnopqrstuvwxyz",
+                      20, HEIGHT / 2, Mojangles);
+    CanvasRenderPPM(&canvas, "text.ppm");
+    CanvasDestroy(&canvas);
+
+    canvas = MakeCanvas(WIDTH, HEIGHT, COLOR_WHITE);
+    CanvasFillTriangle(&canvas, 0, 0, WIDTH / 2, 10, WIDTH / 2 - 10, HEIGHT / 2,
+                       COLOR_BLACK);
+    CanvasFillTriangle(&canvas, 30, 40, 200, 70, 4, 369, 0xFF0823BA);
+    CanvasFillTriangle(&canvas, WIDTH / 2 - 90, HEIGHT / 2 - 20, 550,
+                       HEIGHT / 2 - 90, 550, HEIGHT / 2 + 100, 0x08D9B8C3);
+    CanvasWriteString(&canvas, "THESE ARE TRIANGLES", 10, HEIGHT - 20,
                       Mojangles);
-    RenderCanvasP6("text.ppm", &canvas);
+    CanvasRenderPPM(&canvas, "tri.ppm");
     CanvasDestroy(&canvas);
     return 0;
 }
