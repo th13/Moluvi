@@ -11,6 +11,7 @@
 #define SUB_SATURATED(a, b) ((a) > (b) ? (a - b) : 0)
 #define IN_IRANGEF(x, min, max, eps)                                           \
     ((x) >= (min) - (eps) && (x) <= (max) + (eps))
+#define IN_XRANGE(x, min, max) ((x) >= (min) && (x) <= (max))
 
 /* Memory/misc utilities */
 #define SWAP(T, a, b)                                                          \
@@ -205,11 +206,27 @@ void CanvasFillTriangle(Canvas *const canvas, int64_t x0, int64_t y0,
  * @todo Antialiasing
  */
 void CanvasDrawLine(Canvas *const canvas, uint32_t x0, uint32_t y0, uint32_t x1,
-                    uint32_t y1, uint32_t color) {
+                    uint32_t y1, uint32_t color, uint32_t thiccness) {
     uint32_t start_x = x0;
     uint32_t start_y = y0;
     uint32_t end_x = x1;
     uint32_t end_y = y1;
+
+    if (start_x == end_x) {
+        if (start_y > end_y)
+            SWAP(uint32_t, start_y, end_y);
+
+        for (uint32_t iy = start_y; iy <= end_y; iy++) {
+            for (uint32_t x = start_x; x < thiccness + start_x; x++) {
+                if (IN_XRANGE(x, 0, canvas->width) &&
+                    IN_XRANGE(iy, 0, canvas->height)) {
+                    CanvasBlendPixel(canvas, x, iy, color);
+                }
+            }
+        }
+
+        return;
+    }
 
     if (start_x > end_x) {
         SWAP(uint32_t, start_x, end_x);
@@ -218,7 +235,7 @@ void CanvasDrawLine(Canvas *const canvas, uint32_t x0, uint32_t y0, uint32_t x1,
 
     float dy = (float)start_y - (float)end_y;
     float dx = (float)start_x - (float)end_x;
-    float m = dx == 0 ? canvas->height * 2 : dy / dx;
+    float m = dy / dx;
     float b = (float)start_y - m * (float)start_x;
 
     for (uint32_t ix = start_x; ix <= end_x; ix++) {
@@ -232,8 +249,17 @@ void CanvasDrawLine(Canvas *const canvas, uint32_t x0, uint32_t y0, uint32_t x1,
 
         for (uint32_t iy = ry0; iy <= ry1 || (iy < 0 && iy >= canvas->height);
              iy++) {
-            if (iy < canvas->height && ix < canvas->width) {
-                CanvasBlendPixel(canvas, ix, iy, color);
+            for (uint32_t x_thicc = ix; x_thicc < ix + thiccness; x_thicc++) {
+
+                if (iy < canvas->height && x_thicc < canvas->width) {
+                    CanvasBlendPixel(canvas, x_thicc, iy, color);
+                }
+            }
+        }
+
+        for (uint32_t y_thicc = ry0; y_thicc < ry0 + thiccness; y_thicc++) {
+            if (y_thicc < canvas->height && ix < canvas->width) {
+                CanvasBlendPixel(canvas, ix, y_thicc, color);
             }
         }
     }

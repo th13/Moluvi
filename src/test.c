@@ -2,9 +2,11 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/types.h>
 
 #define NOB_IMPLEMENTATION
 #include "../nob.h"
+
 #include "moluvi.h"
 
 #define EXAMPLE_DIR "example/"
@@ -120,14 +122,41 @@ void ShapesExample(Canvas *const canvas) {
 }
 
 void LinesExample(Canvas *const canvas) {
-    CanvasDrawLine(canvas, 0, 0, WIDTH - 1, HEIGHT - 1, COLOR_BLACK);
-    CanvasDrawLine(canvas, WIDTH - 1, 0, 0, HEIGHT - 1, COLOR_BLACK);
-    CanvasDrawLine(canvas, WIDTH / 2, 0, WIDTH / 2, HEIGHT, COLOR_BLACK);
-    CanvasDrawLine(canvas, 0, HEIGHT / 2, WIDTH - 1, HEIGHT / 2, COLOR_BLACK);
-    CanvasDrawLine(canvas, 0, 0, WIDTH - 1, HEIGHT / 2, COLOR_BLACK);
-    CanvasDrawLine(canvas, WIDTH - 1, 0, 0, HEIGHT / 2, COLOR_BLACK);
-    CanvasDrawLine(canvas, 0, HEIGHT - 1, WIDTH - 1, HEIGHT / 2, COLOR_BLACK);
-    CanvasDrawLine(canvas, WIDTH - 1, HEIGHT - 1, 0, HEIGHT / 2, COLOR_BLACK);
+    CanvasDrawLine(canvas, 0, 0, WIDTH - 1, HEIGHT - 1, COLOR_BLACK, 1);
+    CanvasDrawLine(canvas, WIDTH - 1, 0, 0, HEIGHT - 1, COLOR_BLACK, 1);
+    CanvasDrawLine(canvas, WIDTH / 2, 0, WIDTH / 2, HEIGHT - 1, COLOR_BLACK, 1);
+    CanvasDrawLine(canvas, 0, HEIGHT / 2, WIDTH - 1, HEIGHT / 2, COLOR_BLACK,
+                   1);
+    CanvasDrawLine(canvas, 0, 0, WIDTH - 1, HEIGHT / 2, COLOR_BLACK, 1);
+    CanvasDrawLine(canvas, WIDTH - 1, 0, 0, HEIGHT / 2, COLOR_BLACK, 1);
+    CanvasDrawLine(canvas, 0, HEIGHT - 1, WIDTH - 1, HEIGHT / 2, COLOR_BLACK,
+                   1);
+    CanvasDrawLine(canvas, WIDTH - 1, HEIGHT - 1, 0, HEIGHT / 2, COLOR_BLACK,
+                   1);
+}
+
+void ThiccLinesExample(Canvas *const canvas) {
+    uint32_t graph_origin_x = WIDTH / 2 - WIDTH / 4;
+    // Some lines
+    CanvasDrawLine(canvas, graph_origin_x, HEIGHT - 80,
+                   HEIGHT - 160 + graph_origin_x - 100, 180, COLOR_BLUE, 1);
+    CanvasDrawLine(canvas, graph_origin_x, HEIGHT - 80,
+                   HEIGHT - 160 + graph_origin_x - 200, 160, COLOR_RED, 1);
+    CanvasDrawLine(canvas, graph_origin_x, HEIGHT - 80,
+                   HEIGHT - 160 + graph_origin_x - 40, HEIGHT - 80 - 20,
+                   0x00DC00FF, 1);
+    // Axes (draw last for Z reasons)
+    CanvasDrawLine(canvas, graph_origin_x, 80, graph_origin_x, HEIGHT - 80,
+                   COLOR_BLACK, 3);
+    CanvasDrawLine(canvas, graph_origin_x, HEIGHT - 80,
+                   HEIGHT - 160 + graph_origin_x, HEIGHT - 80, COLOR_BLACK, 3);
+
+    // Labels
+    const char *title = "Fruit Consumption vs All-cause Mortality";
+    int title_sz = strlen(title);
+    CanvasWriteString(canvas, title,
+                      WIDTH / 2 - (title_sz * Mojangles.glyph_width) / 2,
+                      HEIGHT - 60, Mojangles, 1);
 }
 
 void TextExample(Canvas *const canvas) {
@@ -164,6 +193,7 @@ int main(int argc, char **argv) {
 
     TestCase(&ShapesExample, "example/shapes.ppm", cmd);
     TestCase(&LinesExample, "example/lines.ppm", cmd);
+    TestCase(&ThiccLinesExample, "example/thicc.ppm", cmd);
     TestCase(&TextExample, "example/text.ppm", cmd);
     TestCase(&TriangleExample, "example/tri.ppm", cmd);
     return 0;
