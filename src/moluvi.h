@@ -22,11 +22,11 @@
     } while (0);
 
 /* Color definitions */
-#define COLOR_BLACK 0x000000FF
+#define COLOR_BLACK 0xFF000000
 #define COLOR_WHITE 0xFFFFFFFF
 #define COLOR_RED 0xFF0000FF
-#define COLOR_GREEN 0x00FF00FF
-#define COLOR_BLUE 0x0000FFFF
+#define COLOR_GREEN 0xFF00FF00
+#define COLOR_BLUE 0xFFFF0000 
 
 typedef struct RGBA {
     uint8_t r;
@@ -35,34 +35,37 @@ typedef struct RGBA {
     uint8_t a;
 } RGBA;
 
-uint8_t blendComponent(uint8_t bg, uint8_t fg, uint8_t a) {
-    return (uint8_t)(((uint16_t)bg * (255 - a) + (uint16_t)fg * a) / 255);
+uint8_t blend_component(uint8_t bg, uint8_t fg, uint8_t a){
+    return (uint8_t)((fg * a + bg * (255 - a)) / 255);
 }
 
 /**
  * Creates a color (hex) from RGBA components.
  */
 uint32_t RGBAToHex(RGBA color) {
-    uint32_t hex = color.a;
-    hex |= (uint32_t)color.b << 8;
-    hex |= (uint32_t)color.g << 16;
-    hex |= (uint32_t)color.r << 24;
+    uint32_t hex = color.r;
+    hex |= (uint32_t)color.g << 8;
+    hex |= (uint32_t)color.b << 16;
+    hex |= (uint32_t)color.a << 24;
     return hex;
 }
 
 RGBA RGBAFromHex(uint32_t hex) {
     RGBA color = {0};
-    color.a = (uint8_t)(hex & 0xFF);
-    color.b = (uint8_t)((hex >> 8) & 0xFF);
-    color.g = (uint8_t)((hex >> 16) & 0xFF);
-    color.r = (uint8_t)((hex >> 24) & 0xFF);
+    color.r = (uint8_t)(hex & 0xFF);
+    color.g = (uint8_t)((hex >> 8) & 0xFF);
+    color.b = (uint8_t)((hex >> 16) & 0xFF);
+    color.a = (uint8_t)((hex >> 24) & 0xFF);
     return color;
 }
 
 RGBA RGBAToGrayscale(RGBA color) {
     uint32_t gray = (299 * color.r + 587 * color.g + 114 * color.b) / 1000;
     gray = MIN(255, gray);
-    return (RGBA){.r = (uint8_t)gray, .g = (uint8_t)gray, .b = (uint8_t)gray};
+    return (RGBA){.r = (uint8_t)gray,
+                  .g = (uint8_t)gray,
+                  .b = (uint8_t)gray,
+                  .a = color.a};
 }
 
 uint32_t ColorToGrayscale(uint32_t color) {
@@ -72,9 +75,9 @@ uint32_t ColorToGrayscale(uint32_t color) {
 uint32_t ColorBlend(uint32_t fg, uint32_t bg) {
     RGBA fgc = RGBAFromHex(fg);
     RGBA bgc = RGBAFromHex(bg);
-    fgc.r = blendComponent(bgc.r, fgc.r, fgc.a);
-    fgc.g = blendComponent(bgc.g, fgc.g, fgc.a);
-    fgc.b = blendComponent(bgc.b, fgc.b, fgc.a);
+    fgc.r = blend_component(bgc.r, fgc.r, fgc.a);
+    fgc.g = blend_component(bgc.g, fgc.g, fgc.a);
+    fgc.b = blend_component(bgc.b, fgc.b, fgc.a);
     fgc.a = 0xFF;
     return RGBAToHex(fgc);
 }
@@ -125,6 +128,14 @@ void CanvasBlendPixel(Canvas *const canvas, uint32_t x, uint32_t y,
     uint32_t bg = CanvasGetPixel(canvas, x, y);
     uint32_t blend = ColorBlend(color, bg);
     CanvasSetPixel(canvas, x, y, blend);
+}
+
+void CanvasFill(Canvas *const canvas, uint32_t color) {
+    for (uint32_t x = 0; x < canvas->width; x++) {
+        for (uint32_t y = 0; y < canvas->height; y++) {
+            CanvasSetPixel(canvas, x, y, color);
+        }
+    }
 }
 
 /**
@@ -184,7 +195,6 @@ void CanvasFillTriangle(Canvas *const canvas, int64_t x0, int64_t y0,
 
     for (int64_t ix = start_x; ix <= end_x; ix++) {
         for (int64_t iy = start_y; iy <= end_y; iy++) {
-
             int64_t area_p12 = ix * dy12 + x1 * (y2 - iy) + x2 * (iy - y1);
             int64_t area_p02 = ix * dy20 + x2 * (y0 - iy) + x0 * (iy - y2);
             int64_t area_p01 = ix * dy01 + x0 * (y1 - iy) + x1 * (iy - y0);
@@ -267,18 +277,18 @@ void CanvasDrawLine(Canvas *const canvas, uint32_t x0, uint32_t y0, uint32_t x1,
 
 /* Text */
 
-typedef struct Font {
+typedef struct BitFont {
     uint32_t glyph_width;
     uint32_t glyph_height;
     const char *glyphs;
-} Font;
+} BitFont;
 
-const char *FontGetGlyph(Font font, char c) {
+const char *BitFontGetGlyph(BitFont font, char c) {
     return &font.glyphs[c * sizeof(char) * font.glyph_width *
                         font.glyph_height];
 }
 
-/* Font: Mojangles */
+/* BitFont: Mojangles */
 
 #define MJ_GLYPH_WIDTH 8
 #define MJ_GLYPH_HEIGHT 8
@@ -820,7 +830,7 @@ const char GlyphsMojangles[128][MJ_GLYPH_SIZE] = {
 };
 // clang-format on
 
-static Font Mojangles = {
+static BitFont Mojangles = {
     .glyph_width = MJ_GLYPH_WIDTH,
     .glyph_height = MJ_GLYPH_HEIGHT,
     .glyphs = &GlyphsMojangles[0][0],
@@ -830,8 +840,8 @@ static Font Mojangles = {
  * Draws a character at point (x, y).
  */
 void CanvasDrawChar(Canvas *const canvas, char c, uint32_t x, uint32_t y,
-                    Font font, uint32_t font_size) {
-    const char *glyph = FontGetGlyph(font, c);
+                    BitFont font, uint32_t font_size) {
+    const char *glyph = BitFontGetGlyph(font, c);
     uint32_t end_x = x + font_size * font.glyph_width - 1;
     uint32_t end_y = y + font_size * font.glyph_height - 1;
     assert(end_x < canvas->width && end_y < canvas->height);
@@ -851,7 +861,7 @@ void CanvasDrawChar(Canvas *const canvas, char c, uint32_t x, uint32_t y,
  * Writes text to the canvas starting at point (x, y).
  */
 void CanvasWriteString(Canvas *const canvas, const char *str, uint32_t x,
-                       uint32_t y, Font font, uint32_t font_size) {
+                       uint32_t y, BitFont font, uint32_t font_size) {
     uint32_t len = strlen(str);
     if (len == 0)
         return;

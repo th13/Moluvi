@@ -117,8 +117,8 @@ void TestCase(ExampleFn fn, const char *ref_file, Subcommand cmd) {
 }
 
 void ShapesExample(Canvas *const canvas) {
-    CanvasFillRect(canvas, 4, 4, WIDTH - 8, HEIGHT - 8, 0x03A4D9FF);
-    CanvasFillCircle(canvas, 0, 0, HEIGHT / 5, 0xFA5DC3BB);
+    CanvasFillRect(canvas, 4, 4, WIDTH - 8, HEIGHT - 8, 0xFFD9A403);
+    CanvasFillCircle(canvas, 0, 0, HEIGHT / 5, 0xBBC35DFA);
 }
 
 void LinesExample(Canvas *const canvas) {
@@ -144,7 +144,7 @@ void ThiccLinesExample(Canvas *const canvas) {
                    HEIGHT - 160 + graph_origin_x - 200, 160, COLOR_RED, 1);
     CanvasDrawLine(canvas, graph_origin_x, HEIGHT - 80,
                    HEIGHT - 160 + graph_origin_x - 40, HEIGHT - 80 - 20,
-                   0x00DC00FF, 1);
+                   0xFF00DC00, 1);
     // Axes (draw last for Z reasons)
     CanvasDrawLine(canvas, graph_origin_x, 80, graph_origin_x, HEIGHT - 80,
                    COLOR_BLACK, 3);
@@ -169,9 +169,9 @@ void TextExample(Canvas *const canvas) {
 void TriangleExample(Canvas *const canvas) {
     CanvasFillTriangle(canvas, 0, 0, WIDTH / 2, 10, WIDTH / 2 - 10, HEIGHT / 2,
                        COLOR_BLACK);
-    CanvasFillTriangle(canvas, 30, 40, 200, 70, 4, 369, 0xFF0823BA);
+    CanvasFillTriangle(canvas, 30, 40, 200, 70, 4, 369, 0xBA2308FF);
     CanvasFillTriangle(canvas, WIDTH / 2 - 90, HEIGHT / 2 - 20, 550,
-                       HEIGHT / 2 - 90, 550, HEIGHT / 2 + 100, 0x08D9B8C3);
+                       HEIGHT / 2 - 90, 550, HEIGHT / 2 + 100, 0xC3B8D908);
     CanvasWriteString(canvas, "THESE ARE TRIANGLES", 10, HEIGHT - 20, Mojangles,
                       2);
 }
