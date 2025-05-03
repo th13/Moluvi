@@ -34,12 +34,8 @@ void CanvasUpdate(Canvas *const canvas, double dt) {
     rotate_point(&x2, &y2, cx, cy, angle);
 
     CanvasFill(canvas, COLOR_WHITE);
-    CanvasFillTriangle(canvas, x0, y0, x1, y1, x2, y2, COLOR_BLUE);
-
-    // debug
-    //char file[32];
-    //snprintf(file, 32, "example/debug-%.2f.ppm\n", angle);
-    //CanvasRenderPPM(canvas, file);
+    CanvasFillQuad(canvas, POINT(50, 300), POINT(400, 40), POINT(500, 700), POINT(700, 200), 0xFF34D405); 
+     CanvasFillTriangle(canvas, x0, y0, x1, y1, x2, y2, 0xBBFF0000);
 }
 
 int main() {

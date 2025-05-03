@@ -82,6 +82,13 @@ uint32_t ColorBlend(uint32_t fg, uint32_t bg) {
     return RGBAToHex(fgc);
 }
 
+typedef struct Point {
+    uint32_t x;
+    uint32_t y;
+} Point;
+
+#define POINT(x, y) (Point){ (x), (y) }
+
 /**
  * Represents a virtual canvas of size width x height.
  * Contains a pointer to a color array expected to be of equal size.
@@ -201,13 +208,24 @@ void CanvasFillTriangle(Canvas *const canvas, int64_t x0, int64_t y0,
             float u = (float)area_p12 / area;
             float v = (float)area_p02 / area;
             float w = (float)area_p01 / area;
+
             if (IN_IRANGEF(u, 0, 1, 1e-3) && IN_IRANGEF(v, 0, 1, 1e-3) &&
                 IN_IRANGEF(w, 0, 1, 1e-3)) {
                 CanvasBlendPixel(canvas, ix, iy, color);
             }
+
         }
     }
 }
+
+void CanvasFillQuad(Canvas *const canvas, Point p1, Point p2, Point p3, Point p4, uint32_t color) {
+    // We require the quad to be sorted for now. 
+    assert(p1.x < p2.x && p1.x < p3.x && p1.x < p4.x);
+    assert(p4.x > p3.x && p4.x > p2.x && p4.x > p1.x);
+    CanvasFillTriangle(canvas, p1.x, p1.y, p2.x, p2.y, p3.x, p3.y, color);
+    CanvasFillTriangle(canvas, p4.x, p4.y, p2.x, p2.y, p3.x, p3.y, color);
+}
+
 
 /**
  * Draws a line from point (x0, y0) to (x1, y1) of width 1.
