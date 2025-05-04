@@ -13,8 +13,8 @@ int build_test(Nob_Cmd *const cmd) {
 }
 
 int build_example(Nob_Cmd *const cmd) {
-    nob_cmd_append(cmd, "clang", "-Wall", "-Wextra", "-o", BUILD_DIR "example",
-                   SRC_DIR "example.c");
+    nob_cmd_append(cmd, "clang", "-Wall", "-Wextra", "-Weverything", "-o",
+                   BUILD_DIR "example", SRC_DIR "example.c");
     nob_cmd_append(cmd, "-I./vendor/raylib-5.5_macos/include/",
                    "-L./vendor/raylib-5.5_macos/lib/", "-lraylib", "-rpath",
                    "./vendor/raylib-5.5_macos/lib/");

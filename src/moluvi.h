@@ -162,17 +162,18 @@ void CanvasFillRect(Canvas *const canvas, uint32_t x, uint32_t y,
  * Fills a circle in the canvas centered at point (cx, cy) with radius r.
  * @todo Antialiasing
  */
-void CanvasFillCircle(Canvas *const canvas, uint32_t center_x,
-                      uint32_t center_y, uint32_t radius, uint32_t color) {
-    uint32_t start_x = SUB_SATURATED(center_x, radius);
-    uint32_t start_y = SUB_SATURATED(center_y, radius);
-    uint32_t end_x = MIN(canvas->width - 1, center_x + radius);
-    uint32_t end_y = MIN(canvas->height - 1, center_y + radius);
+void CanvasFillCircle(Canvas *const canvas, int64_t center_x,
+                      int64_t center_y, uint32_t radius, uint32_t color) {
+    uint32_t start_x = MAX(0, center_x - (int64_t)radius);
+    uint32_t start_y = MAX(0, center_y - (int64_t)radius);
+    uint32_t end_x = MIN(canvas->width - 1, (uint32_t)(center_x + (int64_t)radius));
+    uint32_t end_y = MIN(canvas->height - 1, (uint32_t)(center_y + (int64_t)radius));
 
     for (uint32_t ix = start_x; ix <= end_x; ix++) {
         for (uint32_t iy = start_y; iy <= end_y; iy++) {
-            int64_t offset_x = (int64_t)ix - (int64_t)center_x;
-            int64_t offset_y = (int64_t)iy - (int64_t)center_y;
+            //printf("Processing %d, %d\n", ix, iy);
+            int64_t offset_x = (int64_t)ix - center_x;
+            int64_t offset_y = (int64_t)iy - center_y;
             if (offset_x * offset_x + offset_y * offset_y <= radius * radius) {
                 CanvasBlendPixel(canvas, ix, iy, color);
             }
