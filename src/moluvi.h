@@ -26,7 +26,7 @@
 #define COLOR_WHITE 0xFFFFFFFF
 #define COLOR_RED 0xFF0000FF
 #define COLOR_GREEN 0xFF00FF00
-#define COLOR_BLUE 0xFFFF0000 
+#define COLOR_BLUE 0xFFFF0000
 
 typedef struct RGBA {
     uint8_t r;
@@ -35,7 +35,7 @@ typedef struct RGBA {
     uint8_t a;
 } RGBA;
 
-uint8_t blend_component(uint8_t bg, uint8_t fg, uint8_t a){
+uint8_t blend_component(uint8_t bg, uint8_t fg, uint8_t a) {
     return (uint8_t)((fg * a + bg * (255 - a)) / 255);
 }
 
@@ -87,7 +87,8 @@ typedef struct Point {
     uint32_t y;
 } Point;
 
-#define POINT(x, y) (Point){ (x), (y) }
+#define POINT(x, y)                                                            \
+    (Point) { (x), (y) }
 
 /**
  * Represents a virtual canvas of size width x height.
@@ -162,12 +163,14 @@ void CanvasFillRect(Canvas *const canvas, uint32_t x, uint32_t y,
  * Fills a circle in the canvas centered at point (cx, cy) with radius r.
  * @todo Antialiasing
  */
-void CanvasFillCircle(Canvas *const canvas, int64_t center_x,
-                      int64_t center_y, uint32_t radius, uint32_t color) {
+void CanvasFillCircle(Canvas *const canvas, int64_t center_x, int64_t center_y,
+                      uint32_t radius, uint32_t color) {
     uint32_t start_x = MAX(0, center_x - (int64_t)radius);
     uint32_t start_y = MAX(0, center_y - (int64_t)radius);
-    uint32_t end_x = MIN(canvas->width - 1, (uint32_t)(center_x + (int64_t)radius));
-    uint32_t end_y = MIN(canvas->height - 1, (uint32_t)(center_y + (int64_t)radius));
+    uint32_t end_x =
+        MIN(canvas->width - 1, (uint32_t)(center_x + (int64_t)radius));
+    uint32_t end_y =
+        MIN(canvas->height - 1, (uint32_t)(center_y + (int64_t)radius));
 
     for (uint32_t ix = start_x; ix <= end_x; ix++) {
         for (uint32_t iy = start_y; iy <= end_y; iy++) {
@@ -217,14 +220,14 @@ void CanvasFillTriangle(Canvas *const canvas, int64_t x0, int64_t y0,
     }
 }
 
-void CanvasFillQuad(Canvas *const canvas, Point p1, Point p2, Point p3, Point p4, uint32_t color) {
-    // We require the quad to be sorted for now. 
+void CanvasFillQuad(Canvas *const canvas, Point p1, Point p2, Point p3,
+                    Point p4, uint32_t color) {
+    // We require the quad to be sorted for now.
     assert(p1.x < p2.x && p1.x < p3.x && p1.x < p4.x);
     assert(p4.x > p3.x && p4.x > p2.x && p4.x > p1.x);
     CanvasFillTriangle(canvas, p1.x, p1.y, p2.x, p2.y, p3.x, p3.y, color);
     CanvasFillTriangle(canvas, p4.x, p4.y, p2.x, p2.y, p3.x, p3.y, color);
 }
-
 
 /**
  * Draws a line from point (x0, y0) to (x1, y1) of width 1.
@@ -856,7 +859,7 @@ static BitFont Mojangles = {
  * Draws a character at point (x, y).
  */
 void CanvasDrawChar(Canvas *const canvas, char c, uint32_t x, uint32_t y,
-                    BitFont font, uint32_t font_size) {
+                    BitFont font, uint32_t font_size, uint32_t color) {
     const char *glyph = BitFontGetGlyph(font, c);
     uint32_t end_x = x + font_size * font.glyph_width - 1;
     uint32_t end_y = y + font_size * font.glyph_height - 1;
@@ -867,7 +870,7 @@ void CanvasDrawChar(Canvas *const canvas, char c, uint32_t x, uint32_t y,
             uint32_t i_glyph = ((iy - y) / font_size) * font.glyph_width +
                                ((ix - x) / font_size);
             if (glyph[i_glyph] == 1) {
-                CanvasBlendPixel(canvas, ix, iy, COLOR_BLACK);
+                CanvasBlendPixel(canvas, ix, iy, color);
             }
         }
     }
@@ -877,7 +880,8 @@ void CanvasDrawChar(Canvas *const canvas, char c, uint32_t x, uint32_t y,
  * Writes text to the canvas starting at point (x, y).
  */
 void CanvasWriteString(Canvas *const canvas, const char *str, uint32_t x,
-                       uint32_t y, BitFont font, uint32_t font_size) {
+                       uint32_t y, BitFont font, uint32_t font_size,
+                       uint32_t color) {
     uint32_t len = strlen(str);
     if (len == 0)
         return;
@@ -887,7 +891,7 @@ void CanvasWriteString(Canvas *const canvas, const char *str, uint32_t x,
     for (uint32_t i = 0; i < len; i++) {
         char c = str[i];
         uint32_t ix = x + i * font_size * font.glyph_width;
-        CanvasDrawChar(canvas, c, ix, y, font, font_size);
+        CanvasDrawChar(canvas, c, ix, y, font, font_size, color);
     }
 }
 

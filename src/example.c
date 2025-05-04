@@ -1,7 +1,6 @@
 #include "../vendor/raylib-5.5_macos/include/raylib.h"
 #include "moluvi.h"
 #include <math.h>
-#include <stdint.h>
 
 #define WIDTH 1000
 #define HEIGHT 1000
@@ -53,10 +52,11 @@ double lerp(double t, double a, double b) { return a + t * (b - a); }
 
 void PointsExample(Canvas *const canvas, double dt) {
     double angle = ANGULAR_SPEED * dt;
-    uint32_t x_interval = WIDTH / 10;
-    uint32_t y_interval = HEIGHT / 10;
+    uint32_t x_interval = WIDTH / 100;
+    uint32_t y_interval = HEIGHT / 100;
 
     CanvasFill(canvas, COLOR_BLACK);
+
     for (uint32_t x = x_interval / 2; x < canvas->width; x += x_interval) {
         for (uint32_t y = y_interval / 2; y < canvas->height; y += y_interval) {
             for (uint32_t z = 0; z < 1000; z += 100) {
@@ -85,6 +85,7 @@ void PointsExample(Canvas *const canvas, double dt) {
             }
         }
     }
+    CanvasWriteString(canvas, "SHEETS", 30, 30, Mojangles, 3, COLOR_WHITE);
 }
 
 int main() {
