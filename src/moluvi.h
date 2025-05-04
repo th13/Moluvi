@@ -171,7 +171,6 @@ void CanvasFillCircle(Canvas *const canvas, int64_t center_x,
 
     for (uint32_t ix = start_x; ix <= end_x; ix++) {
         for (uint32_t iy = start_y; iy <= end_y; iy++) {
-            //printf("Processing %d, %d\n", ix, iy);
             int64_t offset_x = (int64_t)ix - center_x;
             int64_t offset_y = (int64_t)iy - center_y;
             if (offset_x * offset_x + offset_y * offset_y <= radius * radius) {
@@ -214,7 +213,6 @@ void CanvasFillTriangle(Canvas *const canvas, int64_t x0, int64_t y0,
                 IN_IRANGEF(w, 0, 1, 1e-3)) {
                 CanvasBlendPixel(canvas, ix, iy, color);
             }
-
         }
     }
 }
@@ -231,7 +229,6 @@ void CanvasFillQuad(Canvas *const canvas, Point p1, Point p2, Point p3, Point p4
 /**
  * Draws a line from point (x0, y0) to (x1, y1) of width 1.
  *
- * @todo Line thickness
  * @todo Antialiasing
  */
 void CanvasDrawLine(Canvas *const canvas, uint32_t x0, uint32_t y0, uint32_t x1,
