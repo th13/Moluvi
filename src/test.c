@@ -9,7 +9,7 @@
 
 #include "moluvi.h"
 
-#define EXAMPLE_DIR "example/"
+#define TEST_DIR "test/"
 #define SCALE 10
 #define WIDTH 64 * SCALE
 #define HEIGHT 48 * SCALE
@@ -67,7 +67,7 @@ void TestCanvas(const Canvas *const canvas, const char *ref_file) {
     Canvas canvas_diff = {0};
     Canvas ref_canvas = CanvasLoadPPM(ref_file);
     if (CanvasDiff(canvas, &ref_canvas, &canvas_diff)) {
-        char failed_name[64] = EXAMPLE_DIR "FAILED_";
+        char failed_name[64] = TEST_DIR "FAILED_";
         char ref[64];
         strcpy(ref, ref_file);
         char *token = strtok(ref, "/");
@@ -119,6 +119,10 @@ void TestCase(ExampleFn fn, const char *ref_file, Subcommand cmd) {
 void ShapesExample(Canvas *const canvas) {
     CanvasFillRect(canvas, 4, 4, WIDTH - 8, HEIGHT - 8, 0xFFD9A403);
     CanvasFillCircle(canvas, 0, 0, HEIGHT / 5, 0xBBC35DFA);
+    CanvasFillCircle(canvas, -20, -20, HEIGHT / 8, 0xBA00B4D8);
+    CanvasFillQuad(canvas, POINT(75, 200), POINT(200, 20), POINT(300, 275),
+                   POINT(500, 10), 0xFFFA0301);
+    CanvasFillTriangle(canvas, 200, 200, 300, 200, 500, 400, 0x881AB3FD);
 }
 
 void LinesExample(Canvas *const canvas) {
@@ -137,6 +141,7 @@ void LinesExample(Canvas *const canvas) {
 
 void ThiccLinesExample(Canvas *const canvas) {
     uint32_t graph_origin_x = WIDTH / 2 - WIDTH / 4;
+
     // Some lines
     CanvasDrawLine(canvas, graph_origin_x, HEIGHT - 80,
                    HEIGHT - 160 + graph_origin_x - 100, 180, COLOR_BLUE, 1);
@@ -145,6 +150,7 @@ void ThiccLinesExample(Canvas *const canvas) {
     CanvasDrawLine(canvas, graph_origin_x, HEIGHT - 80,
                    HEIGHT - 160 + graph_origin_x - 40, HEIGHT - 80 - 20,
                    0xFF00DC00, 1);
+
     // Axes (draw last for Z reasons)
     CanvasDrawLine(canvas, graph_origin_x, 80, graph_origin_x, HEIGHT - 80,
                    COLOR_BLACK, 3);
@@ -156,14 +162,14 @@ void ThiccLinesExample(Canvas *const canvas) {
     int title_sz = strlen(title);
     CanvasWriteString(canvas, title,
                       WIDTH / 2 - (title_sz * Mojangles.glyph_width) / 2,
-                      HEIGHT - 60, Mojangles, 1);
+                      HEIGHT - 60, Mojangles, 1, COLOR_BLACK);
 }
 
 void TextExample(Canvas *const canvas) {
     CanvasWriteString(canvas, "ABCDEFGHIJKLMNOPQRSTUVWXYZ", 20, HEIGHT / 2,
-                      Mojangles, 2);
+                      Mojangles, 2, COLOR_BLACK);
     CanvasWriteString(canvas, "abcdefghijklmnopqrstuvwxyz", 20, HEIGHT / 2 + 20,
-                      Mojangles, 1);
+                      Mojangles, 1, COLOR_BLACK);
 }
 
 void TriangleExample(Canvas *const canvas) {
@@ -173,15 +179,16 @@ void TriangleExample(Canvas *const canvas) {
     CanvasFillTriangle(canvas, WIDTH / 2 - 90, HEIGHT / 2 - 20, 550,
                        HEIGHT / 2 - 90, 550, HEIGHT / 2 + 100, 0xC3B8D908);
     CanvasWriteString(canvas, "THESE ARE TRIANGLES", 10, HEIGHT - 20, Mojangles,
-                      2);
+                      2, COLOR_BLACK);
 }
 
 int main(int argc, char **argv) {
-    nob_mkdir_if_not_exists(EXAMPLE_DIR);
+    nob_mkdir_if_not_exists(TEST_DIR);
 
     // Parse command. Default mode is CMD_TEST
     nob_shift(argv, argc);
     Subcommand cmd = CMD_TEST;
+
     if (argc) {
         const char *command = nob_shift(argv, argc);
         if (strcmp(command, "register") == 0) {
@@ -191,10 +198,11 @@ int main(int argc, char **argv) {
         }
     }
 
-    TestCase(&ShapesExample, "example/shapes.ppm", cmd);
-    TestCase(&LinesExample, "example/lines.ppm", cmd);
-    TestCase(&ThiccLinesExample, "example/thicc.ppm", cmd);
-    TestCase(&TextExample, "example/text.ppm", cmd);
-    TestCase(&TriangleExample, "example/tri.ppm", cmd);
+    TestCase(&ShapesExample, TEST_DIR "shapes.ppm", cmd);
+    TestCase(&LinesExample, TEST_DIR "lines.ppm", cmd);
+    TestCase(&ThiccLinesExample, TEST_DIR "thicc.ppm", cmd);
+    TestCase(&TextExample, TEST_DIR "text.ppm", cmd);
+    TestCase(&TriangleExample, TEST_DIR "tri.ppm", cmd);
+
     return 0;
 }
