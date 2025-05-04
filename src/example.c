@@ -10,20 +10,21 @@
 
 #define ANGULAR_SPEED 0.5
 
-void rotate_point(double *x, double *y, double *z, double cx, double cy,
-                  double cz, double theta) {
+void Point3DRotate(double *x, double *y, double *z, double cx, double cy,
+                   double cz, double theta) {
     double sinT = sin(theta);
     double cosT = cos(theta);
 
     double xp = *x - cx;
     double yp = *y - cy;
     double zp = *z - cz;
-    *x = xp * cosT - zp * sinT;
-    *y = yp;
-    *z = xp * sinT + zp * cosT;
-    *x += cx;
-    *y += cy;
-    *z += cz;
+    double x_z = xp * cosT - zp * sinT;
+    double y_z = yp;
+    double z_z = xp * sinT + zp * cosT;
+
+    *x = x_z + cx;
+    *y = y_z + cy;
+    *z = z_z + cz;
 }
 
 void CanvasUpdate(Canvas *const canvas, double dt) {
@@ -35,9 +36,9 @@ void CanvasUpdate(Canvas *const canvas, double dt) {
     double cx = (x0 + x1 + x2) / 3;
     double cy = (y0 + y1 + y2) / 3;
 
-    // rotate_point(&x0, &y0, cx, cy, angle);
-    // rotate_point(&x1, &y1, cx, cy, angle);
-    // rotate_point(&x2, &y2, cx, cy, angle);
+    // Point3DRotate(&x0, &y0, cx, cy, angle);
+    // Point3DRotate(&x1, &y1, cx, cy, angle);
+    // Point3DRotate(&x2, &y2, cx, cy, angle);
 
     CanvasFill(canvas, COLOR_WHITE);
     CanvasFillQuad(canvas, POINT(50, 300), POINT(400, 40), POINT(500, 700),
@@ -63,7 +64,7 @@ void PointsExample(Canvas *const canvas, double dt) {
                 double zd = (double)z;
                 double xd = (double)x - WIDTH / 2;
                 double yd = (double)y - HEIGHT / 2;
-                rotate_point(&xd, &yd, &zd, 0, 0, 500, angle);
+                Point3DRotate(&xd, &yd, &zd, 0, 0, 500, angle);
 
                 double z_depth = zd + CAM_DIST;
                 if (z_depth <= 0)
