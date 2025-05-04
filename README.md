@@ -6,7 +6,9 @@ Moluvi ✏️ is a software-rendered 2D/3D graphics library implemented in pure 
 
 Here are some current examples that are rendered completely on CPU to a Moluvi `Canvas` before being sent to a Raylib `Texture2D` and rendered to screen.
 
-
+![Rainbox](https://github.com/th13/Moluvi/blob/master/examples/rainbox.gif)
+![Triangles](https://github.com/th13/Moluvi/blob/master/examples/triangles.gif)
+![Sheets](https://github.com/th13/Moluvi/blob/master/examples/sheets.gif)
 
 ## Building from source
 
