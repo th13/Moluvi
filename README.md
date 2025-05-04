@@ -14,8 +14,6 @@ Here are some current examples that are rendered completely on CPU to a Moluvi `
 
 Moluvi uses the [nob.h](https://github.com/tsoding/nob.h) build system. The current primary entrypoint is `src/example.c` and `src/test.c` for tests.
 
-`TODO`
-
 > [!NOTE]
 > Nob requires a one-time bootstrap build.
 > Run `clang -o nob nob.c` to bootstrap. Subsequent invocations can simply run `nob`, which is smart enough to rebuild itself.
