@@ -1,4 +1,5 @@
 #include "../vendor/raylib-5.5_macos/include/raylib.h"
+#include "font_mojangles.h"
 #include "moluvi.h"
 #include <math.h>
 
@@ -26,7 +27,7 @@ void Point3DRotate(double *x, double *y, double *z, double cx, double cy,
     *z = z_z + cz;
 }
 
-void CanvasUpdate(Canvas *const canvas, double dt) {
+void MLCanvasUpdate(MLCanvas *const canvas, double dt) {
     double angle = ANGULAR_SPEED * dt;
 
     static double x0 = CENTER_X - 100, y0 = CENTER_Y - 120;
@@ -39,10 +40,12 @@ void CanvasUpdate(Canvas *const canvas, double dt) {
     // Point3DRotate(&x1, &y1, cx, cy, angle);
     // Point3DRotate(&x2, &y2, cx, cy, angle);
 
-    CanvasFill(canvas, COLOR_WHITE);
-    CanvasFillQuad(canvas, POINT(50, 300), POINT(400, 40), POINT(500, 700),
-                   POINT(700, 200), 0xFF34D405);
-    CanvasFillTriangle(canvas, x0, y0, x1, y1, x2, y2, 0xBBFF0000);
+    MLCanvasFill(canvas, ML_COLOR_WHITE);
+    MLCanvasFillQuad(canvas, MLPoint2DMake(50, 300), MLPoint2DMake(400, 40),
+                     MLPoint2DMake(500, 700), MLPoint2DMake(700, 200),
+                     MLColorFromHex(0xFF34D405));
+    MLCanvasFillTriangle(canvas, x0, y0, x1, y1, x2, y2,
+                         MLColorFromHex(0xBBFF0000));
 }
 
 #define FOCAL_LEN 500.0
@@ -50,17 +53,17 @@ void CanvasUpdate(Canvas *const canvas, double dt) {
 
 double lerp(double t, double a, double b) { return a + t * (b - a); }
 
-void PointsExample(Canvas *const canvas, double dt) {
+void PointsExample(MLCanvas *const canvas, double dt) {
     double angle = ANGULAR_SPEED * dt;
-    uint32_t x_interval = WIDTH / 100;
-    uint32_t y_interval = HEIGHT / 100;
+    uint32_t x_interval = WIDTH / 10;
+    uint32_t y_interval = HEIGHT / 10;
 
-    CanvasFill(canvas, COLOR_BLACK);
+    MLCanvasFill(canvas, ML_COLOR_BLACK);
 
     for (uint32_t x = x_interval / 2; x < canvas->width; x += x_interval) {
         for (uint32_t y = y_interval / 2; y < canvas->height; y += y_interval) {
             for (uint32_t z = 0; z < 1000; z += 100) {
-                uint32_t color = z % 20 == 0 ? COLOR_RED : COLOR_BLUE;
+                MLColor color = z % 20 == 0 ? ML_COLOR_RED : ML_COLOR_BLUE;
                 double zd = (double)z;
                 double xd = (double)x - WIDTH / 2;
                 double yd = (double)y - HEIGHT / 2;
@@ -77,22 +80,21 @@ void PointsExample(Canvas *const canvas, double dt) {
                 double x_norm = (double)x / (double)WIDTH;
                 double y_norm = (double)y / (double)HEIGHT;
                 double z_norm = z / 1000.0;
-                RGBA rgba = (RGBA){(uint8_t)lerp(x_norm, 0, 255),
-                                   (uint8_t)lerp(y_norm, 0, 255),
-                                   (uint8_t)lerp(z_norm, 0, 255), 0xFF};
-                CanvasFillCircle(canvas, (int64_t)x_p, (int64_t)y_p,
-                                 (uint32_t)r, RGBAToHex(rgba));
+                MLColor rgba = (MLColor){(uint8_t)lerp(x_norm, 0, 255),
+                                         (uint8_t)lerp(y_norm, 0, 255),
+                                         (uint8_t)lerp(z_norm, 0, 255), 255};
+                MLCanvasFillCircle(canvas, (int64_t)x_p, (int64_t)y_p,
+                                   (uint32_t)r, rgba);
             }
         }
     }
-    CanvasWriteString(canvas, "SHEETS", 30, 30, Mojangles, 3, COLOR_WHITE);
+    MLCanvasWriteString(canvas, "CUBE", 30, 30, Mojangles, 3, ML_COLOR_WHITE);
 }
 
 int main() {
     InitWindow(WIDTH, HEIGHT, "Moluvi Examples");
 
-    Canvas canvas = MakeCanvas(WIDTH, HEIGHT, COLOR_WHITE);
-    // CanvasUpdate(&canvas, 0);
+    MLCanvas canvas = MLCanvasMake(WIDTH, HEIGHT, ML_COLOR_WHITE);
     PointsExample(&canvas, 0);
 
     Image img = (Image){.data = canvas.data,
@@ -105,7 +107,6 @@ int main() {
     SetTargetFPS(60);
 
     while (!WindowShouldClose()) {
-        // CanvasUpdate(&canvas, GetFrameTime());
         PointsExample(&canvas, GetTime());
         UpdateTexture(texture, canvas.data);
 
