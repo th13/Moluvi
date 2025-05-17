@@ -1,5 +1,5 @@
 build/
 nob
 nob.old
-example/FAILED_*
+test/FAILED_*
 example/debug-*

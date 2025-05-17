@@ -51,8 +51,6 @@ void MLCanvasUpdate(MLCanvas *const canvas, double dt) {
 #define FOCAL_LEN 500.0
 #define CAM_DIST 500.0
 
-double lerp(double t, double a, double b) { return a + t * (b - a); }
-
 void PointsExample(MLCanvas *const canvas, double dt) {
     double angle = ANGULAR_SPEED * dt;
     uint32_t x_interval = WIDTH / 10;
@@ -80,9 +78,9 @@ void PointsExample(MLCanvas *const canvas, double dt) {
                 double x_norm = (double)x / (double)WIDTH;
                 double y_norm = (double)y / (double)HEIGHT;
                 double z_norm = z / 1000.0;
-                MLColor rgba = (MLColor){(uint8_t)lerp(x_norm, 0, 255),
-                                         (uint8_t)lerp(y_norm, 0, 255),
-                                         (uint8_t)lerp(z_norm, 0, 255), 255};
+                MLColor rgba = (MLColor){(uint8_t)lerpd(x_norm, 1, 255),
+                                         (uint8_t)lerpd(y_norm, 0, 255),
+                                         (uint8_t)lerpd(z_norm, 0, 255), 255};
                 MLCanvasFillCircle(canvas, (int64_t)x_p, (int64_t)y_p,
                                    (uint32_t)r, rgba);
             }

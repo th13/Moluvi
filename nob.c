@@ -8,7 +8,7 @@
 
 int build_test(Nob_Cmd *const cmd) {
     nob_cmd_append(cmd, "clang", "-Wall", "-Wextra", "-o", BUILD_DIR "test",
-                   SRC_DIR "test.c");
+                   SRC_DIR "moluvi.c", SRC_DIR "test.c");
     return nob_cmd_run_sync_and_reset(cmd);
 }
 

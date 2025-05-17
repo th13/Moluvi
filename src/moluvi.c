@@ -1,20 +1,7 @@
 #include "moluvi.h"
-
-// Math utilities
-#define MIN(a, b) (a) < (b) ? (a) : (b)
-#define MAX(a, b) (a) > (b) ? (a) : (b)
-#define SUB_SATURATED(a, b) ((a) > (b) ? (a - b) : 0)
-#define IN_IRANGEF(x, min, max, eps)                                           \
-    ((x) >= (min) - (eps) && (x) <= (max) + (eps))
-#define IN_XRANGE(x, min, max) ((x) >= (min) && (x) <= (max))
-
-// Memory/misc utilities
-#define SWAP(T, a, b)                                                          \
-    do {                                                                       \
-        T tmp = a;                                                             \
-        a = b;                                                                 \
-        b = tmp;                                                               \
-    } while (0);
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 MLPoint2D MLPoint2DMake(int64_t x, int64_t y) { return (MLPoint2D){x, y}; }
 
@@ -54,6 +41,18 @@ MLColor MLColorBlend(MLColor fg, MLColor bg) {
     fg.b = ComponentBlend(bg.b, fg.b, fg.a);
     fg.a = 0xFF;
     return fg;
+}
+
+MLColor MLColorDifferenceBlend(MLColor c1, MLColor c2) {
+    MLColor blend = {0, 0, 0, 255};
+    blend.r = abs(c1.r - c2.r);
+    blend.g = abs(c1.g - c2.g);
+    blend.b = abs(c1.b - c2.b);
+    return blend;
+}
+
+bool MLColorEqual(MLColor c1, MLColor c2) {
+    return c1.r == c2.r && c1.g == c2.g && c1.b == c2.b && c1.a == c2.a;
 }
 
 MLCanvas MLCanvasMake(uint32_t width, uint32_t height, MLColor fill) {
@@ -348,8 +347,8 @@ MLCanvas MLCanvasLoadPPM(const char *filename) {
     printf("CANVAS WIDTH=%u, HEIGHT=%u, BIT_DEPTH=%u\n", width, height,
            bit_depth);
 
-    // Interpret bytes as colors (uint32_t)
-    uint32_t *data = (uint32_t *)malloc(sizeof(uint32_t) * width * height);
+    // Interpret bytes as colors (MLColor)
+    MLColor *data = malloc(sizeof(MLColor) * width * height);
     if (!data) {
         perror("Could not allocate data\n");
         exit(1);
@@ -369,14 +368,18 @@ MLCanvas MLCanvasLoadPPM(const char *filename) {
 
     for (uint32_t i = 0; i < width * height; i++) {
         MLColor color = {0};
-        color.r = raw_data[i * 3];
+        color.r = raw_data[i * 3 + 0];
         color.g = raw_data[i * 3 + 1];
         color.b = raw_data[i * 3 + 2];
         color.a = 0xFF;
-        data[i] = MLColorToHex(color);
+        data[i] = color;
     }
 
     fclose(file);
 
     return (MLCanvas){.width = width, .height = height, .data = data};
 }
+
+#define LERP(t, a, b) (a) + (t) * ((b) - (a))
+inline float lerpf(float t, float a, float b) { return LERP(t, a, b); }
+inline double lerpd(double t, double a, double b) { return LERP(t, a, b); }
