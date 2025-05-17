@@ -23,6 +23,13 @@ typedef struct MLPoint3D {
     float z;
 } MLPoint3D;
 
+typedef struct MLCamera {
+    float focal_len; // The focal length of the camera
+    float dist;      // The distance of camera from screen
+    uint32_t width;  // The screen width
+    uint32_t height; // The screen height
+} MLCamera;
+
 typedef struct MLColor {
     uint8_t r;
     uint8_t g;
@@ -94,6 +101,12 @@ void MLCanvasBlendPixel(MLCanvas *const canvas, uint32_t x, uint32_t y,
 
 // MLPoint utils
 MLPoint2D MLPoint2DMake(int64_t x, int64_t y);
+
+// 3D utilities
+MLPoint3D MLPoint3DMake(float x, float y, float z);
+MLPoint3D MLPoint3DRotateY(MLPoint3D point, MLPoint3D center, double theta);
+MLPoint2D MLPoint3DProject(MLPoint3D point, MLCamera cam);
+float MLDistScaleAtZ(float dist, float z, MLCamera cam);
 
 // MLColor functions
 uint32_t MLColorToHex(MLColor color);

@@ -1,9 +1,40 @@
 #include "moluvi.h"
+#include <math.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 
-MLPoint2D MLPoint2DMake(int64_t x, int64_t y) { return (MLPoint2D){x, y}; }
+inline MLPoint2D MLPoint2DMake(int64_t x, int64_t y) {
+    return (MLPoint2D){x, y};
+}
+
+inline MLPoint3D MLPoint3DMake(float x, float y, float z) {
+    return (MLPoint3D){x, y, z};
+}
+
+MLPoint3D MLPoint3DRotateY(MLPoint3D point, MLPoint3D center, double theta) {
+    double sin_theta = sin(theta);
+    double cos_theta = cos(theta);
+
+    MLPoint3D offset = {point.x - center.x, point.y - center.y,
+                        point.z - center.z};
+    MLPoint3D rotated;
+    rotated.x = offset.x * cos_theta - offset.z * sin_theta + center.x;
+    rotated.y = point.y;
+    rotated.z = offset.x * sin_theta + offset.z * cos_theta + center.z;
+    return rotated;
+}
+
+MLPoint2D MLPoint3DProject(MLPoint3D point, MLCamera cam) {
+    float z_depth = point.z + cam.dist;
+    return MLPoint2DMake(
+        (point.x * cam.focal_len) / z_depth + (float)cam.width / 2.,
+        (point.y * cam.focal_len) / z_depth + (float)cam.height / 2.);
+}
+
+inline float MLDistScaleAtZ(float dist, float z, MLCamera cam) {
+    return dist * cam.focal_len / (z + cam.dist);
+}
 
 static uint8_t ComponentBlend(uint8_t bg, uint8_t fg, uint8_t a) {
     return (uint8_t)((fg * a + bg * (255 - a)) / 255);
