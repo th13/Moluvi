@@ -196,7 +196,7 @@ void MLCanvasFillTriangle(MLCanvas *const canvas, int64_t x0, int64_t y0,
                     (uint8_t)(w * 255.),
                     255,
                 };
-                MLCanvasBlendPixel(canvas, ix, iy, test);
+                MLCanvasBlendPixel(canvas, ix, iy, /*test*/ color);
             }
         }
     }

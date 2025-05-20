@@ -52,7 +52,7 @@ void PointsExample(MLCanvas *const canvas, double dt) {
     MLCanvasWriteString(canvas, "CUBE", 30, 30, Mojangles, 3, ML_COLOR_WHITE);
 }
 
-#define WORLD_SCALE 100
+#define WORLD_SCALE 1
 void TeapotExample(MLCanvas *const canvas, OBJ teapot, double dt) {
     static MLPoint3D center = {0, 0, 0};
 
@@ -82,11 +82,13 @@ void TeapotExample(MLCanvas *const canvas, OBJ teapot, double dt) {
     }
 }
 
+// TODO: Z-buffer
+// TODO: Lighting
 int main() {
     InitWindow(WIDTH, HEIGHT, "Moluvi Examples");
 
     MLCanvas canvas = MLCanvasMake(WIDTH, HEIGHT, ML_COLOR_WHITE);
-    OBJ teapot = OBJLoadFromFile("vendor/teapot.obj");
+    OBJ teapot = OBJLoadFromFile("vendor/max-planck.obj");
     // PointsExample(&canvas, 0);
 
     TeapotExample(&canvas, teapot, GetTime());
