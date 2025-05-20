@@ -1,16 +1,18 @@
 #include "../vendor/raylib-5.5_macos/include/raylib.h"
 #include "font_mojangles.h"
 #include "moluvi.h"
+#include <stddef.h>
+#include <stdio.h>
 
 #define WIDTH 1000
 #define HEIGHT 1000
 #define CENTER_X (WIDTH / 2.0)
 #define CENTER_Y (HEIGHT / 2.0)
-#define ANGULAR_SPEED 0.5
+#define ANGULAR_SPEED 1.0
 
 static MLCamera cam = {
-    .dist = 500,
-    .focal_len = 500,
+    .dist = 1000,
+    .focal_len = 1000,
     .width = WIDTH,
     .height = HEIGHT,
 };
@@ -50,12 +52,44 @@ void PointsExample(MLCanvas *const canvas, double dt) {
     MLCanvasWriteString(canvas, "CUBE", 30, 30, Mojangles, 3, ML_COLOR_WHITE);
 }
 
+#define WORLD_SCALE 100
+void TeapotExample(MLCanvas *const canvas, OBJ teapot, double dt) {
+    static MLPoint3D center = {0, 0, 0};
+
+    MLCanvasFill(canvas, ML_COLOR_BLACK);
+    for (size_t i = 0; i < OBJFaceCount(&teapot); i++) {
+        MLVector3Size face = OBJGetFace(&teapot, i);
+
+        MLPoint3D vertices[3] = {
+            OBJGetVertex(&teapot, face.x, WORLD_SCALE),
+            OBJGetVertex(&teapot, face.y, WORLD_SCALE),
+            OBJGetVertex(&teapot, face.z, WORLD_SCALE),
+        };
+
+        for (int i = 0; i < 3; i++) {
+            vertices[i] =
+                MLPoint3DRotateY(vertices[i], center, ANGULAR_SPEED * dt);
+        }
+
+        MLPoint2D proj[3] = {
+            MLPoint3DProject(vertices[0], cam),
+            MLPoint3DProject(vertices[1], cam),
+            MLPoint3DProject(vertices[2], cam),
+        };
+
+        MLCanvasFillTriangle(canvas, proj[0].x, proj[0].y, proj[1].x, proj[1].y,
+                             proj[2].x, proj[2].y, ML_COLOR_RED);
+    }
+}
+
 int main() {
     InitWindow(WIDTH, HEIGHT, "Moluvi Examples");
 
     MLCanvas canvas = MLCanvasMake(WIDTH, HEIGHT, ML_COLOR_WHITE);
-    PointsExample(&canvas, 0);
+    OBJ teapot = OBJLoadFromFile("vendor/teapot.obj");
+    // PointsExample(&canvas, 0);
 
+    TeapotExample(&canvas, teapot, GetTime());
     Image img = (Image){.data = canvas.data,
                         .width = WIDTH,
                         .height = HEIGHT,
@@ -66,7 +100,8 @@ int main() {
     SetTargetFPS(60);
 
     while (!WindowShouldClose()) {
-        PointsExample(&canvas, GetTime());
+        // PointsExample(&canvas, GetTime());
+        TeapotExample(&canvas, teapot, GetTime());
         UpdateTexture(texture, canvas.data);
 
         BeginDrawing();
@@ -78,5 +113,7 @@ int main() {
     UnloadTexture(texture);
     CloseWindow();
 
+    OBJFree(&teapot);
+    MLCanvasDestroy(&canvas);
     return 0;
 }

@@ -1,5 +1,6 @@
 #include "moluvi.h"
 #include <math.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -29,7 +30,8 @@ MLPoint2D MLPoint3DProject(MLPoint3D point, MLCamera cam) {
     float z_depth = point.z + cam.dist;
     return MLPoint2DMake(
         (point.x * cam.focal_len) / z_depth + (float)cam.width / 2.,
-        (point.y * cam.focal_len) / z_depth + (float)cam.height / 2.);
+        // Invert y as our 2D coordinate system has positive y pointing down
+        (-point.y * cam.focal_len) / z_depth + (float)cam.height / 2.);
 }
 
 inline float MLDistScaleAtZ(float dist, float z, MLCamera cam) {
@@ -165,14 +167,17 @@ void MLCanvasFillTriangle(MLCanvas *const canvas, int64_t x0, int64_t y0,
     int64_t start_y = MIN(MIN(y0, y1), y2);
     int64_t end_x = MAX(MAX(x0, x1), x2);
     int64_t end_y = MAX(MAX(y0, y1), y2);
-    assert(start_x >= 0 && start_y >= 0 && end_x < canvas->width &&
-           end_y < canvas->height);
+    if (!(start_x >= 0 && start_y >= 0 && end_x < canvas->width &&
+          end_y < canvas->height)) {
+        return;
+    }
 
     int64_t dy01 = y0 - y1;
     int64_t dy12 = y1 - y2;
     int64_t dy20 = y2 - y0;
     int64_t area = x0 * dy12 + x1 * dy20 + x2 * dy01;
-    assert(area != 0); // no degenerate triangles
+    if (area == 0)
+        return; // no degenerate triangles
 
     for (int64_t ix = start_x; ix <= end_x; ix++) {
         for (int64_t iy = start_y; iy <= end_y; iy++) {
@@ -185,7 +190,13 @@ void MLCanvasFillTriangle(MLCanvas *const canvas, int64_t x0, int64_t y0,
 
             if (IN_IRANGEF(u, 0, 1, 1e-3) && IN_IRANGEF(v, 0, 1, 1e-3) &&
                 IN_IRANGEF(w, 0, 1, 1e-3)) {
-                MLCanvasBlendPixel(canvas, ix, iy, color);
+                MLColor test = {
+                    (uint8_t)(u * 255.),
+                    (uint8_t)(v * 255.),
+                    (uint8_t)(w * 255.),
+                    255,
+                };
+                MLCanvasBlendPixel(canvas, ix, iy, test);
             }
         }
     }
@@ -409,6 +420,112 @@ MLCanvas MLCanvasLoadPPM(const char *filename) {
     fclose(file);
 
     return (MLCanvas){.width = width, .height = height, .data = data};
+}
+
+OBJ OBJMake() {
+    return (OBJ){.vertices = ARRAY_MAKE(float, 256),
+                 .faces = ARRAY_MAKE(size_t, 512)};
+}
+
+OBJ OBJLoadFromFile(const char *filename) {
+    FILE *obj_file = fopen(filename, "r");
+    if (!obj_file) {
+        fprintf(stderr, "Could not open vendor/teapot.obj");
+        exit(1);
+    }
+
+    OBJ obj = OBJMake();
+
+    char type;
+    float x, y, z;
+    while (fscanf(obj_file, "%c %f %f %f\n", &type, &x, &y, &z) == 4) {
+        printf("type = %c, %f %f %f\n", type, x, y, z);
+        if (type == 'v') {
+            OBJAddVertex(&obj, x, y, z);
+        } else if (type == 'f') {
+            OBJAddFace(&obj, (size_t)x, (size_t)y, (size_t)z);
+        } else {
+            fprintf(stderr, "WARNING: Unsupported OBJ type '%c' found\n", type);
+        }
+    }
+
+    return obj;
+}
+
+inline size_t OBJVertexCount(const OBJ *const obj) {
+    return obj->vertices.count / 3;
+}
+
+inline size_t OBJFaceCount(const OBJ *const obj) {
+    return obj->faces.count / 3;
+}
+
+void OBJAddVertex(OBJ *const obj, float x, float y, float z) {
+    ARRAY_APPEND(float, &obj->vertices, x);
+    ARRAY_APPEND(float, &obj->vertices, y);
+    ARRAY_APPEND(float, &obj->vertices, z);
+}
+
+void OBJAddFace(OBJ *const obj, size_t i, size_t j, size_t k) {
+    // OBJ stores vertex indices 1-indexed, we'll correct that here
+    ARRAY_APPEND(size_t, &obj->faces, i - 1);
+    ARRAY_APPEND(size_t, &obj->faces, j - 1);
+    ARRAY_APPEND(size_t, &obj->faces, k - 1);
+}
+
+MLPoint3D OBJGetVertex(const OBJ *const obj, size_t i, float scale) {
+    size_t pos = i * 3;
+    return (MLPoint3D){ARRAY_GET(float, &obj->vertices, pos) * scale,
+                       ARRAY_GET(float, &obj->vertices, pos + 1) * scale,
+                       ARRAY_GET(float, &obj->vertices, pos + 2) * scale};
+}
+
+MLVector3Size OBJGetFace(const OBJ *const obj, size_t i) {
+    size_t pos = i * 3;
+    return (MLVector3Size){ARRAY_GET(size_t, &obj->faces, pos),
+                           ARRAY_GET(size_t, &obj->faces, pos + 1),
+                           ARRAY_GET(size_t, &obj->faces, pos + 2)};
+}
+
+void OBJFree(OBJ *obj) {
+    ArrayFree(&obj->vertices);
+    ArrayFree(&obj->faces);
+}
+
+void *ArrayGet(const Array *const arr, size_t i, size_t item_size) {
+    if (i >= arr->count) {
+        fprintf(stderr, "ERROR: Index %zu out of bounds, count: %zu\n", i,
+                arr->count);
+        exit(1);
+    }
+    return arr->data + i * item_size;
+}
+
+Array ArrayMake(size_t item_size, size_t capacity) {
+    return (Array){
+        .data = malloc((item_size) * (capacity)),
+        .count = 0,
+        .capacity = (capacity),
+    };
+}
+
+void ArrayFree(Array *arr) {
+    if (!arr)
+        return;
+    free(arr->data);
+}
+
+void ArrayResize(Array *const arr, size_t size, size_t item_size) {
+    if (arr->count > size) {
+        fprintf(stderr, "Cannot resize array smaller than item count");
+    }
+
+    arr->capacity = size;
+    arr->data = realloc(arr->data, arr->capacity * item_size);
+    if (arr->data == NULL) {
+        fprintf(stderr, "Failed to realloc array while resizing");
+        exit(1);
+    }
 }
 
 #define LERP(t, a, b) (a) + (t) * ((b) - (a))

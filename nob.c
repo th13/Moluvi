@@ -5,10 +5,17 @@
 
 #define BUILD_DIR "build/"
 #define SRC_DIR "src/"
+#define TEST_DIR "test/"
 
 int build_test(Nob_Cmd *const cmd) {
     nob_cmd_append(cmd, "clang", "-Wall", "-Wextra", "-o", BUILD_DIR "test",
                    SRC_DIR "moluvi.c", SRC_DIR "test.c");
+    return nob_cmd_run_sync_and_reset(cmd);
+}
+
+int build_obj_test(Nob_Cmd *const cmd) {
+    nob_cmd_append(cmd, "clang", "-Wall", "-Wextra", "-o", BUILD_DIR "test-obj",
+                   SRC_DIR "moluvi.c", TEST_DIR "test-obj.c");
     return nob_cmd_run_sync_and_reset(cmd);
 }
 
@@ -38,5 +45,7 @@ int main(int argc, char **argv) {
         return !build_test(&cmd);
     } else if (strcmp(target, "example") == 0) {
         return !build_example(&cmd);
+    } else if (strcmp(target, "test-obj") == 0) {
+        return !build_obj_test(&cmd);
     }
 }

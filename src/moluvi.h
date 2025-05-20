@@ -3,6 +3,7 @@
 
 #include <assert.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -12,16 +13,31 @@
 // Types
 //--------------------------------------------------------------------------------
 
-typedef struct MLPoint2D {
+typedef struct MLVector2Int64 {
     int64_t x;
     int64_t y;
-} MLPoint2D;
+} MLVector2Int64;
 
-typedef struct MLPoint3D {
+typedef struct MLVector3Float {
     float x;
     float y;
     float z;
-} MLPoint3D;
+} MLVector3Float;
+
+typedef struct MLVector3Int64 {
+    int64_t x;
+    int64_t y;
+    int64_t z;
+} MLVector3Int64;
+
+typedef struct MLVector3Size {
+    size_t x;
+    size_t y;
+    size_t z;
+} MLVector3Size;
+
+#define MLPoint2D MLVector2Int64
+#define MLPoint3D MLVector3Float
 
 typedef struct MLCamera {
     float focal_len; // The focal length of the camera
@@ -48,6 +64,17 @@ typedef struct MLFont {
     uint32_t glyph_height;
     const char *glyphs;
 } MLFont;
+
+typedef struct Array {
+    void *data;
+    size_t count;
+    size_t capacity;
+} Array;
+
+typedef struct OBJ {
+    Array vertices;
+    Array faces;
+} OBJ;
 
 //--------------------------------------------------------------------------------
 // API
@@ -145,8 +172,36 @@ MLCanvas MLCanvasLoadPPM(const char *filename);
 // MLFont utils
 const char *MLFontGetGlyph(MLFont font, char c);
 
+// OBJ utils
+OBJ OBJMake();
+OBJ OBJLoadFromFile(const char *filename);
+size_t OBJVertexCount(const OBJ *const obj);
+size_t OBJFaceCount(const OBJ *const obj);
+void OBJAddVertex(OBJ *const obj, float x, float y, float z);
+void OBJAddFace(OBJ *const obj, size_t i, size_t j, size_t k);
+MLPoint3D OBJGetVertex(const OBJ *const obj, size_t i, float scale);
+MLVector3Size OBJGetFace(const OBJ *const obj, size_t i);
+void OBJFree(OBJ *obj);
+
 // Misc utilities
 float lerpf(float t, float a, float b);
 double lerpd(double t, double a, double b);
+
+// Arrays
+void *ArrayGet(const Array *const arr, size_t i, size_t item_size);
+Array ArrayMake(size_t item_size, size_t capacity);
+void ArrayResize(Array *const arr, size_t size, size_t item_size);
+void ArrayFree(Array *arr);
+
+#define ARRAY_MAKE(type, capacity) ArrayMake(sizeof(type), (capacity))
+#define ARRAY_RESIZE(type, arr, size) ArrayResize((arr), (size), sizeof(type))
+#define ARRAY_GET(type, arr, i) (*(type *)ArrayGet((arr), (i), sizeof(type)))
+#define ARRAY_APPEND(type, arr, item)                                          \
+    do {                                                                       \
+        if ((arr)->count >= (arr)->capacity) {                                 \
+            ARRAY_RESIZE(type, arr, (arr)->capacity * 2);                      \
+        }                                                                      \
+        ((type *)(arr)->data)[(arr)->count++] = (item);                        \
+    } while (0)
 
 #endif // MOLUVI_H
