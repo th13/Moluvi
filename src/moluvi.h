@@ -120,6 +120,8 @@ typedef struct OBJ {
 
 // MLCanvas creation & utils
 MLCanvas MLCanvasMake(uint32_t width, uint32_t height, MLColor fill);
+void MLCanvasUseDepth(MLCanvas *const canvas);
+void canvas_depth_reset(MLCanvas *const canvas);
 void MLCanvasDestroy(MLCanvas *canvas);
 MLColor MLCanvasGetPixel(const MLCanvas *const canvas, uint32_t x, uint32_t y);
 void MLCanvasSetPixel(MLCanvas *const canvas, uint32_t x, uint32_t y,
@@ -135,6 +137,8 @@ MLPoint3D MLPoint3DMake(float x, float y, float z);
 MLPoint3D MLPoint3DRotateY(MLPoint3D point, MLPoint3D center, double theta);
 MLPoint2D MLPoint3DProject(MLPoint3D point, MLCamera cam);
 float MLDistScaleAtZ(float dist, float z, MLCamera cam);
+void MLCanvasProjectTriangle(MLCanvas *const canvas, MLPoint3D *vertices,
+                             MLCamera cam);
 
 // MLColor functions
 uint32_t MLColorToHex(MLColor color);

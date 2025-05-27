@@ -57,6 +57,7 @@ void TeapotExample(MLCanvas *const canvas, OBJ teapot, double dt) {
     static MLPoint3D center = {0, 0, 0};
 
     MLCanvasFill(canvas, ML_COLOR_BLACK);
+    canvas_depth_reset(canvas);
     for (size_t i = 0; i < OBJFaceCount(&teapot); i++) {
         MLVector3Size face = OBJGetFace(&teapot, i);
 
@@ -71,22 +72,16 @@ void TeapotExample(MLCanvas *const canvas, OBJ teapot, double dt) {
                 MLPoint3DRotateY(vertices[i], center, ANGULAR_SPEED * dt);
         }
 
-        MLPoint2D proj[3] = {
-            MLPoint3DProject(vertices[0], cam),
-            MLPoint3DProject(vertices[1], cam),
-            MLPoint3DProject(vertices[2], cam),
-        };
-
-        MLCanvasFillTriangleInterpolated(canvas, proj[0], proj[1], proj[2]);
+        MLCanvasProjectTriangle(canvas, vertices, cam);
     }
 }
 
-// TODO: Z-buffer
 // TODO: Lighting
 int main() {
     InitWindow(WIDTH, HEIGHT, "Moluvi Examples");
 
     MLCanvas canvas = MLCanvasMake(WIDTH, HEIGHT, ML_COLOR_WHITE);
+    MLCanvasUseDepth(&canvas);
     OBJ teapot = OBJLoadFromFile("vendor/cow.obj");
     // PointsExample(&canvas, 0);
 

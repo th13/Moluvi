@@ -1,9 +1,11 @@
 #include "moluvi.h"
+#include <float.h>
 #include <math.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 inline MLPoint2D MLPoint2DMake(int64_t x, int64_t y) {
     return (MLPoint2D){x, y};
@@ -98,6 +100,13 @@ MLCanvas MLCanvasMake(uint32_t width, uint32_t height, MLColor fill) {
 
 void MLCanvasUseDepth(MLCanvas *const canvas) {
     canvas->depth = malloc(canvas->width * canvas->height * sizeof(float));
+    canvas_depth_reset(canvas);
+}
+
+void canvas_depth_reset(MLCanvas *const canvas) {
+    for (int i = 0; i < canvas->width * canvas->height; i++) {
+        canvas->depth[i] = FLT_MAX;
+    }
 }
 
 void MLCanvasDestroy(MLCanvas *canvas) {
@@ -215,21 +224,6 @@ static void TriangleFillAtPoint(MLCanvas *const canvas, int64_t x, int64_t y,
     MLCanvasBlendPixel(canvas, x, y, *(MLColor *)ctx);
 }
 
-static void TriangleInterpolateRGBAtPoint(MLCanvas *const canvas, int64_t x,
-                                          int64_t y, float u, float v, float w,
-                                          void *ctx) {
-    MLColor interp = {
-        (uint8_t)(u * 255.),
-        (uint8_t)(v * 255.),
-        (uint8_t)(w * 255.),
-        255,
-    };
-    MLCanvasBlendPixel(canvas, x, y, interp);
-}
-
-/**
- * Fills a triangle in the canvas based on 3 points.
- */
 void MLCanvasFillTriangle(MLCanvas *const canvas, int64_t x0, int64_t y0,
                           int64_t x1, int64_t y1, int64_t x2, int64_t y2,
                           MLColor color) {
@@ -237,6 +231,22 @@ void MLCanvasFillTriangle(MLCanvas *const canvas, int64_t x0, int64_t y0,
     MLPoint2D v2 = {x1, y1};
     MLPoint2D v3 = {x2, y2};
     TriangleCalculate(canvas, v1, v2, v3, &TriangleFillAtPoint, &color);
+}
+
+static MLColor color_lerp_rgb(float u, float v, float w) {
+
+    return (MLColor){
+        (uint8_t)(u * 255.),
+        (uint8_t)(v * 255.),
+        (uint8_t)(w * 255.),
+        255,
+    };
+}
+
+static void TriangleInterpolateRGBAtPoint(MLCanvas *const canvas, int64_t x,
+                                          int64_t y, float u, float v, float w,
+                                          void *ctx) {
+    MLCanvasBlendPixel(canvas, x, y, color_lerp_rgb(u, v, w));
 }
 
 void MLCanvasFillTriangleInterpolated(MLCanvas *const canvas, MLPoint2D v1,
@@ -320,6 +330,20 @@ void MLCanvasDrawLine(MLCanvas *const canvas, uint32_t x0, uint32_t y0,
 }
 
 // 3D
+
+void TriangleInterpolateWithZ(MLCanvas *const canvas, int64_t x, int64_t y,
+                              float u, float v, float w, void *ctx) {
+    MLPoint3D *vertices = (MLPoint3D *)ctx;
+    MLColor color = color_lerp_rgb(u, v, w);
+    float z = vertices[0].z * u + vertices[1].z * v + vertices[2].z * w;
+
+    if (z >= canvas->depth[y * canvas->width + x])
+        return;
+
+    MLCanvasBlendPixel(canvas, x, y, color);
+    canvas->depth[y * canvas->width + x] = z;
+}
+
 void MLCanvasProjectTriangle(MLCanvas *const canvas, MLPoint3D *vertices,
                              MLCamera cam) {
 
@@ -328,6 +352,9 @@ void MLCanvasProjectTriangle(MLCanvas *const canvas, MLPoint3D *vertices,
         MLPoint3DProject(vertices[1], cam),
         MLPoint3DProject(vertices[2], cam),
     };
+
+    TriangleCalculate(canvas, proj[0], proj[1], proj[2],
+                      &TriangleInterpolateWithZ, vertices);
 }
 
 /* Text */
