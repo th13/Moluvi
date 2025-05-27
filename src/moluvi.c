@@ -96,10 +96,17 @@ MLCanvas MLCanvasMake(uint32_t width, uint32_t height, MLColor fill) {
     return (MLCanvas){.width = width, .height = height, .data = data};
 }
 
+void MLCanvasUseDepth(MLCanvas *const canvas) {
+    canvas->depth = malloc(canvas->width * canvas->height * sizeof(float));
+}
+
 void MLCanvasDestroy(MLCanvas *canvas) {
     if (!canvas)
         return;
-    free(canvas->data);
+    if (canvas->data)
+        free(canvas->data);
+    if (canvas->depth)
+        free(canvas->depth);
 }
 
 MLColor MLCanvasGetPixel(const MLCanvas *const canvas, uint32_t x, uint32_t y) {
@@ -109,6 +116,10 @@ MLColor MLCanvasGetPixel(const MLCanvas *const canvas, uint32_t x, uint32_t y) {
 
 void MLCanvasSetPixel(MLCanvas *const canvas, uint32_t x, uint32_t y,
                       MLColor color) {
+    uint32_t idx = y * canvas->width + x;
+    if (canvas->depth) {
+        float z = canvas->depth[idx];
+    }
     canvas->data[y * canvas->width + x] = color;
 }
 
@@ -156,12 +167,15 @@ void MLCanvasFillCircle(MLCanvas *const canvas, int64_t center_x,
     }
 }
 
-/**
- * Fills a triangle in the canvas based on 3 points.
- */
-void MLCanvasFillTriangle(MLCanvas *const canvas, int64_t x0, int64_t y0,
-                          int64_t x1, int64_t y1, int64_t x2, int64_t y2,
-                          MLColor color) {
+typedef void (*TriangleCallback)(MLCanvas *const canvas, int64_t x, int64_t y,
+                                 float u, float v, float w, void *ctx);
+
+void TriangleCalculate(MLCanvas *const canvas, MLPoint2D v1, MLPoint2D v2,
+                       MLPoint2D v3, TriangleCallback callback, void *ctx) {
+    int64_t x0 = v1.x, y0 = v1.y;
+    int64_t x1 = v2.x, y1 = v2.y;
+    int64_t x2 = v3.x, y2 = v3.y;
+
     // Bounding region
     int64_t start_x = MIN(MIN(x0, x1), x2);
     int64_t start_y = MIN(MIN(y0, y1), y2);
@@ -190,16 +204,44 @@ void MLCanvasFillTriangle(MLCanvas *const canvas, int64_t x0, int64_t y0,
 
             if (IN_IRANGEF(u, 0, 1, 1e-3) && IN_IRANGEF(v, 0, 1, 1e-3) &&
                 IN_IRANGEF(w, 0, 1, 1e-3)) {
-                MLColor test = {
-                    (uint8_t)(u * 255.),
-                    (uint8_t)(v * 255.),
-                    (uint8_t)(w * 255.),
-                    255,
-                };
-                MLCanvasBlendPixel(canvas, ix, iy, test /*color*/);
+                callback(canvas, ix, iy, u, v, w, ctx);
             }
         }
     }
+}
+
+static void TriangleFillAtPoint(MLCanvas *const canvas, int64_t x, int64_t y,
+                                float u, float v, float w, void *ctx) {
+    MLCanvasBlendPixel(canvas, x, y, *(MLColor *)ctx);
+}
+
+static void TriangleInterpolateRGBAtPoint(MLCanvas *const canvas, int64_t x,
+                                          int64_t y, float u, float v, float w,
+                                          void *ctx) {
+    MLColor interp = {
+        (uint8_t)(u * 255.),
+        (uint8_t)(v * 255.),
+        (uint8_t)(w * 255.),
+        255,
+    };
+    MLCanvasBlendPixel(canvas, x, y, interp);
+}
+
+/**
+ * Fills a triangle in the canvas based on 3 points.
+ */
+void MLCanvasFillTriangle(MLCanvas *const canvas, int64_t x0, int64_t y0,
+                          int64_t x1, int64_t y1, int64_t x2, int64_t y2,
+                          MLColor color) {
+    MLPoint2D v1 = {x0, y0};
+    MLPoint2D v2 = {x1, y1};
+    MLPoint2D v3 = {x2, y2};
+    TriangleCalculate(canvas, v1, v2, v3, &TriangleFillAtPoint, &color);
+}
+
+void MLCanvasFillTriangleInterpolated(MLCanvas *const canvas, MLPoint2D v1,
+                                      MLPoint2D v2, MLPoint2D v3) {
+    TriangleCalculate(canvas, v1, v2, v3, &TriangleInterpolateRGBAtPoint, NULL);
 }
 
 void MLCanvasFillQuad(MLCanvas *const canvas, MLPoint2D p1, MLPoint2D p2,
@@ -275,6 +317,17 @@ void MLCanvasDrawLine(MLCanvas *const canvas, uint32_t x0, uint32_t y0,
             }
         }
     }
+}
+
+// 3D
+void MLCanvasProjectTriangle(MLCanvas *const canvas, MLPoint3D *vertices,
+                             MLCamera cam) {
+
+    MLPoint2D proj[3] = {
+        MLPoint3DProject(vertices[0], cam),
+        MLPoint3DProject(vertices[1], cam),
+        MLPoint3DProject(vertices[2], cam),
+    };
 }
 
 /* Text */

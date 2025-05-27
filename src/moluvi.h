@@ -54,9 +54,10 @@ typedef struct MLColor {
 } MLColor;
 
 typedef struct MLCanvas {
-    uint32_t width;
-    uint32_t height;
-    MLColor *data;
+    uint32_t width;  // Width of the canvas in px
+    uint32_t height; // Height of the canvas in px
+    MLColor *data;   // Pixel data, as rgba
+    float *depth;    // (Optional) Depth buffer
 } MLCanvas;
 
 typedef struct MLFont {
@@ -152,6 +153,8 @@ void MLCanvasFillCircle(MLCanvas *const canvas, int64_t center_x,
 void MLCanvasFillTriangle(MLCanvas *const canvas, int64_t x0, int64_t y0,
                           int64_t x1, int64_t y1, int64_t x2, int64_t y2,
                           MLColor color);
+void MLCanvasFillTriangleInterpolated(MLCanvas *const canvas, MLPoint2D v1,
+                                      MLPoint2D v2, MLPoint2D v3);
 void MLCanvasFillQuad(MLCanvas *const canvas, MLPoint2D p1, MLPoint2D p2,
                       MLPoint2D p3, MLPoint2D p4, MLColor color);
 void MLCanvasDrawLine(MLCanvas *const canvas, uint32_t x0, uint32_t y0,

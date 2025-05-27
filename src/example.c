@@ -77,8 +77,7 @@ void TeapotExample(MLCanvas *const canvas, OBJ teapot, double dt) {
             MLPoint3DProject(vertices[2], cam),
         };
 
-        MLCanvasFillTriangle(canvas, proj[0].x, proj[0].y, proj[1].x, proj[1].y,
-                             proj[2].x, proj[2].y, ML_COLOR_RED);
+        MLCanvasFillTriangleInterpolated(canvas, proj[0], proj[1], proj[2]);
     }
 }
 
