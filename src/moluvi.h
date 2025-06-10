@@ -13,69 +13,75 @@
 // Types
 //--------------------------------------------------------------------------------
 
-typedef struct MLVector2Int64 {
+struct vec2i {
     int64_t x;
     int64_t y;
-} MLVector2Int64;
+};
 
-typedef struct MLVector3Float {
+struct vec3f {
     float x;
     float y;
     float z;
-} MLVector3Float;
+};
 
-typedef struct MLVector3Int64 {
-    int64_t x;
-    int64_t y;
-    int64_t z;
-} MLVector3Int64;
-
-typedef struct MLVector3Size {
+struct vec3z {
     size_t x;
     size_t y;
     size_t z;
-} MLVector3Size;
+};
 
-#define MLPoint2D MLVector2Int64
-#define MLPoint3D MLVector3Float
+typedef struct vec2i point2_t;
+typedef struct vec3f point3_t;
 
-typedef struct MLCamera {
+struct camera {
     float focal_len; // The focal length of the camera
     float dist;      // The distance of camera from screen
     uint32_t width;  // The screen width
     uint32_t height; // The screen height
-} MLCamera;
+};
 
-typedef struct MLColor {
+struct rgba {
     uint8_t r;
     uint8_t g;
     uint8_t b;
     uint8_t a;
-} MLColor;
+};
 
-typedef struct MLCanvas {
-    uint32_t width;  // Width of the canvas in px
-    uint32_t height; // Height of the canvas in px
-    MLColor *data;   // Pixel data, as rgba
-    float *depth;    // (Optional) Depth buffer
-} MLCanvas;
+struct canvas {
+    uint32_t width;    // Width of the canvas in px
+    uint32_t height;   // Height of the canvas in px
+    struct rgba *data; // Pixel data, as rgba
+    float *depth;      // (Optional) Depth buffer
+};
 
-typedef struct MLFont {
+// TODO: Hide struct canvas
+typedef struct canvas canvas_t;
+
+struct font {
     uint32_t glyph_width;
     uint32_t glyph_height;
     const char *glyphs;
-} MLFont;
+};
 
-typedef struct Array {
+// TODO: Hide struct font
+typedef struct font font_t;
+
+struct arraylist {
     void *data;
     size_t count;
     size_t capacity;
-} Array;
+};
 
-typedef struct OBJ {
-    Array vertices;
-    Array faces;
-} OBJ;
+// TODO: Hide struct arraylist
+typedef struct arraylist arraylist_t;
+
+struct obj {
+    arraylist_t vertices;
+    arraylist_t faces;
+};
+
+// TODO: Hide struct obj
+typedef struct obj obj_t;
 
 //--------------------------------------------------------------------------------
 // API
@@ -106,107 +112,105 @@ typedef struct OBJ {
 #endif
 
 // Common color definitions
-#define ML_COLOR_BLACK (MLColor){0, 0, 0, 255}
-#define ML_COLOR_WHITE (MLColor){255, 255, 255, 255}
-#define ML_COLOR_RED (MLColor){255, 0, 0, 255}
-#define ML_COLOR_GREEN (MLColor){0, 255, 0, 255}
-#define ML_COLOR_BLUE (MLColor){0, 0, 255, 255}
+#define COLOR_BLACK (struct rgba){0, 0, 0, 255}
+#define COLOR_WHITE (struct rgba){255, 255, 255, 255}
+#define COLOR_RED (struct rgba){255, 0, 0, 255}
+#define COLOR_GREEN (struct rgba){0, 255, 0, 255}
+#define COLOR_BLUE (struct rgba){0, 0, 255, 255}
 
 #ifndef C
-#define C(hex) MLColorFromHex(hex)
+#define C(hex) hex_to_rgba(hex)
 #else
-#define COLOR(hex) MLColorfroMLColorFromHex(hex)
+#define COLOR(hex) hex_to_rgba(hex)
 #endif
 
-// MLCanvas creation & utils
-MLCanvas MLCanvasMake(uint32_t width, uint32_t height, MLColor fill);
-void MLCanvasUseDepth(MLCanvas *const canvas);
-void canvas_depth_reset(MLCanvas *const canvas);
-void MLCanvasDestroy(MLCanvas *canvas);
-MLColor MLCanvasGetPixel(const MLCanvas *const canvas, uint32_t x, uint32_t y);
-void MLCanvasSetPixel(MLCanvas *const canvas, uint32_t x, uint32_t y,
-                      MLColor color);
-void MLCanvasBlendPixel(MLCanvas *const canvas, uint32_t x, uint32_t y,
-                        MLColor color);
-
-// MLPoint utils
-MLPoint2D MLPoint2DMake(int64_t x, int64_t y);
+// Canvas creation & utils
+int canvas_init(canvas_t *const canvas, uint32_t width, uint32_t height,
+                struct rgba fill);
+int canvas_use_depth(canvas_t *const canvas);
+int canvas_depth_reset(canvas_t *const canvas);
+void canvas_cleanup(canvas_t *const canvas);
+int canvas_get_px(const canvas_t *const canvas, uint32_t x, uint32_t y,
+                  struct rgba *px);
+int canvas_set_px(canvas_t *const canvas, uint32_t x, uint32_t y,
+                  struct rgba color);
+int canvas_blend_px(canvas_t *const canvas, uint32_t x, uint32_t y,
+                    struct rgba color);
 
 // 3D utilities
-MLPoint3D MLPoint3DMake(float x, float y, float z);
-MLPoint3D MLPoint3DRotateY(MLPoint3D point, MLPoint3D center, double theta);
-MLPoint2D MLPoint3DProject(MLPoint3D point, MLCamera cam);
-float MLDistScaleAtZ(float dist, float z, MLCamera cam);
-void MLCanvasProjectTriangle(MLCanvas *const canvas, MLPoint3D *vertices,
-                             MLCamera cam);
+void point3_rotate(point3_t *point, point3_t center, float theta);
+point2_t point3_proj(point3_t point, struct camera cam);
+float scale_z(float val, float z, struct camera cam);
+int canvas_proj_tri(canvas_t *const canvas, point3_t *const vertices,
+                    struct camera cam);
 
-// MLColor functions
-uint32_t MLColorToHex(MLColor color);
-MLColor MLColorFromHex(uint32_t hex);
-MLColor MLColorToGrayscale(MLColor color);
-MLColor MLColorBlend(MLColor fg, MLColor bg);
-bool MLColorEqual(MLColor c1, MLColor c2);
-MLColor MLColorDifferenceBlend(MLColor c1, MLColor c2);
+// Color functions
+uint32_t rgba_to_hex(struct rgba color);
+struct rgba hex_to_rgba(uint32_t hex);
+struct rgba rgba_convert_grayscale(struct rgba color);
+struct rgba rgba_alpha_blend(struct rgba fg, struct rgba bg);
+bool rgba_eql(struct rgba c1, struct rgba c2);
+struct rgba rgba_diff_blend(struct rgba c1, struct rgba c2);
 
-// MLCanvas fills & draws
-void MLCanvasFill(MLCanvas *const canvas, MLColor color);
-void MLCanvasFillRect(MLCanvas *const canvas, uint32_t x, uint32_t y,
-                      uint32_t width, uint32_t height, MLColor color);
-void MLCanvasFillCircle(MLCanvas *const canvas, int64_t center_x,
-                        int64_t center_y, uint32_t radius, MLColor color);
-void MLCanvasFillTriangle(MLCanvas *const canvas, int64_t x0, int64_t y0,
-                          int64_t x1, int64_t y1, int64_t x2, int64_t y2,
-                          MLColor color);
-void MLCanvasFillTriangleInterpolated(MLCanvas *const canvas, MLPoint2D v1,
-                                      MLPoint2D v2, MLPoint2D v3);
-void MLCanvasFillQuad(MLCanvas *const canvas, MLPoint2D p1, MLPoint2D p2,
-                      MLPoint2D p3, MLPoint2D p4, MLColor color);
-void MLCanvasDrawLine(MLCanvas *const canvas, uint32_t x0, uint32_t y0,
-                      uint32_t x1, uint32_t y1, MLColor color,
-                      uint32_t thiccness);
+// Canvas fills & draws
+int canvas_fill(canvas_t *const canvas, struct rgba color);
+int canvas_fill_rect(canvas_t *const canvas, uint32_t x, uint32_t y,
+                     uint32_t width, uint32_t height, struct rgba color);
+int canvas_fill_circle(canvas_t *const canvas, int64_t center_x,
+                       int64_t center_y, uint32_t radius, struct rgba color);
+int canvas_fill_tri(canvas_t *const canvas, int64_t x0, int64_t y0, int64_t x1,
+                    int64_t y1, int64_t x2, int64_t y2, struct rgba color);
+void canvas_fill_triInterpolated(canvas_t *const canvas, point2_t v1,
+                                 point2_t v2, point2_t v3);
+int canvas_fill_quad(canvas_t *const canvas, point2_t p1, point2_t p2,
+                     point2_t p3, point2_t p4, struct rgba color);
+int canvas_draw_line(canvas_t *const canvas, uint32_t x0, uint32_t y0,
+                     uint32_t x1, uint32_t y1, struct rgba color,
+                     uint32_t thiccness);
 
 // Text drawing
-void MLCanvasDrawChar(MLCanvas *const canvas, char c, uint32_t x, uint32_t y,
-                      MLFont font, uint32_t font_size, MLColor color);
-void MLCanvasWriteString(MLCanvas *const canvas, const char *str, uint32_t x,
-                         uint32_t y, MLFont font, uint32_t font_size,
-                         MLColor color);
+void canvas_draw_char(canvas_t *const canvas, char c, uint32_t x, uint32_t y,
+                      font_t font, uint32_t font_size, struct rgba color);
+void canvas_write_string(canvas_t *const canvas, const char *str, uint32_t x,
+                         uint32_t y, font_t font, uint32_t font_size,
+                         struct rgba color);
 
-// MLCanvas rendering
-void MLCanvasRenderPPM(const MLCanvas *const canvas, const char *filename);
-MLCanvas MLCanvasLoadPPM(const char *filename);
+// Canvas rendering
+void canvas_render_ppm(const canvas_t *const canvas, const char *filename);
+canvas_t canvas_load_ppm(const char *filename);
 
-// MLFont utils
-const char *MLFontGetGlyph(MLFont font, char c);
+// font_t utils
+const char *font_get_glyph(font_t font, char c);
 
-// OBJ utils
-OBJ OBJMake();
-OBJ OBJLoadFromFile(const char *filename);
-size_t OBJVertexCount(const OBJ *const obj);
-size_t OBJFaceCount(const OBJ *const obj);
-void OBJAddVertex(OBJ *const obj, float x, float y, float z);
-void OBJAddFace(OBJ *const obj, size_t i, size_t j, size_t k);
-MLPoint3D OBJGetVertex(const OBJ *const obj, size_t i, float scale);
-MLVector3Size OBJGetFace(const OBJ *const obj, size_t i);
-void OBJFree(OBJ *obj);
+// obj_t utils
+int obj_init(obj_t *const obj);
+int obj_load(obj_t *const obj, const char *filename);
+size_t obj_vertex_count(const obj_t *const obj);
+size_t obj_face_count(const obj_t *const obj);
+void obj_add_vertex(obj_t *const obj, float x, float y, float z);
+void obj_add_face(obj_t *const obj, size_t i, size_t j, size_t k);
+point3_t obj_get_vertex(const obj_t *const obj, size_t i, float scale);
+struct vec3z obj_get_face(const obj_t *const obj, size_t i);
+void obj_cleanup(obj_t *obj);
 
 // Misc utilities
 float lerpf(float t, float a, float b);
 double lerpd(double t, double a, double b);
 
 // Arrays
-void *ArrayGet(const Array *const arr, size_t i, size_t item_size);
-Array ArrayMake(size_t item_size, size_t capacity);
-void ArrayResize(Array *const arr, size_t size, size_t item_size);
-void ArrayFree(Array *arr);
+void *array_get(const arraylist_t *const arr, size_t i, size_t item_size);
+int array_init(arraylist_t *const array, size_t item_size, size_t capacity);
+int array_resize(arraylist_t *const arr, size_t size, size_t item_size);
+void array_cleanup(arraylist_t *arr);
 
-#define ARRAY_MAKE(type, capacity) ArrayMake(sizeof(type), (capacity))
-#define ARRAY_RESIZE(type, arr, size) ArrayResize((arr), (size), sizeof(type))
-#define ARRAY_GET(type, arr, i) (*(type *)ArrayGet((arr), (i), sizeof(type)))
+#define ARRAY_MAKE(arr, type, capacity)                                        \
+    array_init(arr, sizeof(type), (capacity))
+#define ARRAY_RESIZE(type, arr, size) array_resize((arr), (size), sizeof(type))
+#define ARRAY_GET(type, arr, i) (*(type *)array_get((arr), (i), sizeof(type)))
 #define ARRAY_APPEND(type, arr, item)                                          \
     do {                                                                       \
         if ((arr)->count >= (arr)->capacity) {                                 \
-            ARRAY_RESIZE(type, arr, (arr)->capacity * 2);                      \
+            int ret = ARRAY_RESIZE(type, arr, (arr)->capacity * 2);            \
         }                                                                      \
         ((type *)(arr)->data)[(arr)->count++] = (item);                        \
     } while (0)

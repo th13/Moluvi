@@ -11,7 +11,7 @@
 #define MJ_GLYPH_SIZE (MJ_GLYPH_WIDTH * MJ_GLYPH_HEIGHT)
 
 // clang-format off
-const char GlyphsMojangles[128][MJ_GLYPH_SIZE] = {
+const char glyphs_mojangles[128][MJ_GLYPH_SIZE] = {
     [' '] = {
         0,0,0,0,0,0,0,0,
         0,0,0,0,0,0,0,0,
@@ -546,10 +546,10 @@ const char GlyphsMojangles[128][MJ_GLYPH_SIZE] = {
 };
 // clang-format on
 
-static MLFont Mojangles = {
+static font_t font_mojangles = {
     .glyph_width = MJ_GLYPH_WIDTH,
     .glyph_height = MJ_GLYPH_HEIGHT,
-    .glyphs = &GlyphsMojangles[0][0],
+    .glyphs = &glyphs_mojangles[0][0],
 };
 
 #endif // FONT_MOJANGLES
