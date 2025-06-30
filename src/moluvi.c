@@ -44,7 +44,7 @@ uint32_t rgba_to_hex(struct rgba color) {
     return hex;
 }
 
-struct rgba hex2rgba(uint32_t hex) {
+struct rgba hex_to_rgba(uint32_t hex) {
     struct rgba color = {0};
     color.r = (uint8_t)(hex & 0xFF);
     color.g = (uint8_t)((hex >> 8) & 0xFF);
@@ -95,6 +95,7 @@ int canvas_init(canvas_t *const canvas, uint32_t width, uint32_t height,
     canvas->width = width;
     canvas->height = height;
     canvas->data = data;
+    canvas->depth = NULL;
     return 0;
 }
 
@@ -275,7 +276,7 @@ int calc_tri_barycentric(canvas_t *const canvas, point2_t v1, point2_t v2,
     return 0;
 }
 
-static void TriangleFillAtPoint(canvas_t *const canvas, int64_t x, int64_t y,
+static void tri_fill_at_point(canvas_t *const canvas, int64_t x, int64_t y,
                                 float u, float v, float w, void *ctx) {
     canvas_blend_px(canvas, x, y, *(struct rgba *)ctx);
 }
@@ -285,7 +286,7 @@ int canvas_fill_tri(canvas_t *const canvas, int64_t x0, int64_t y0, int64_t x1,
     point2_t v1 = {x0, y0};
     point2_t v2 = {x1, y1};
     point2_t v3 = {x2, y2};
-    return calc_tri_barycentric(canvas, v1, v2, v3, &TriangleFillAtPoint,
+    return calc_tri_barycentric(canvas, v1, v2, v3, &tri_fill_at_point,
                                 &color);
 }
 
